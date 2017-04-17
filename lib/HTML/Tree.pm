@@ -1,24 +1,15 @@
 package HTML::Tree;
 
-=head1 NAME
-
-HTML::Tree - build and scan parse-trees of HTML
-
-=head1 VERSION
-
-4.2
-
-=cut
+# ABSTRACT: build and scan parse-trees of HTML
 
 # HTML::Tree is basically just a happy alias to HTML::TreeBuilder.
 
 use warnings;
 use strict;
 
-use HTML::TreeBuilder ();
+# VERSION from OurPkgVersion
 
-use vars qw( $VERSION );
-$VERSION = 4.2;
+use HTML::TreeBuilder ();
 
 =head1 SYNOPSIS
 
@@ -62,7 +53,6 @@ sub new_from_url {
 }
 
 1;
-__END__
 
 =head1 DESCRIPTION
 
@@ -105,23 +95,27 @@ data structures should read just the last article.  Readers without
 that background should read the first, then the second, and then the
 third.
 
-=head2 new
+=head1 METHODS
 
-Redirects to HTML::TreeBuilder::new
+All these methods simply redirect to the corresponding method in
+HTML::TreeBuilder.  It's more efficient to use HTML::TreeBuilder
+directly, and skip loading HTML::Tree at all.
 
-=cut
+=method new
 
-=head2 new_from_file
+Redirects to L<HTML::TreeBuilder/new>.
 
-Redirects to HTML::TreeBuilder::new_from_file
+=method new_from_file
 
-=cut
+Redirects to L<HTML::TreeBuilder/new_from_file>.
 
-=head2 new_from_content
+=method new_from_content
 
-Redirects to HTML::TreeBuilder::new_from_content
+Redirects to L<HTML::TreeBuilder/new_from_content>.
 
-=cut
+=method new_from_url
+
+Redirects to L<HTML::TreeBuilder/new_from_url>.
 
 =head1 SUPPORT
 
@@ -149,6 +143,13 @@ L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=HTML-Tree>
 
 L<http://search.cpan.org/dist/HTML-Tree>
 
+=item * Stack Overflow
+
+L<http://stackoverflow.com/questions/tagged/html-tree>
+
+If you have a question about how to use HTML-Tree, Stack Overflow is
+the place to ask it.  Make sure you tag it both C<perl> and C<html-tree>.
+
 =back
 
 =head1 SEE ALSO
@@ -168,15 +169,10 @@ and HTML-Tree specifically.  There's more info at:
 
 =head1 SOURCE REPOSITORY
 
-HTML::Tree is maintained in Subversion hosted at perl.org.
+HTML-Tree is now maintained using Git.  The main public repository is
+L<< {{ $meta{resources}{repository}{web} // die 'no repo' }} >>.
 
-    http://svn.perl.org/modules/HTML-Tree
-
-The latest development work is always at:
-
-    http://svn.perl.org/modules/HTML-Tree/trunk
-
-Any patches sent should be diffed against this repository.
+The best way to send a patch is to make a pull request there.
 
 =head1 ACKNOWLEDGEMENTS
 
@@ -188,37 +184,6 @@ patches submitted to HTML::Tree as part of the Phalanx project
 
 Thanks to the following people for additional patches and documentation:
 Terrence Brannon, Gordon Lack, Chris Madsen and Ricardo Signes.
-
-=head1 AUTHOR
-
-Current Author:
-	Jeff Fearn C<< <jfearn@cpan.org> >>.
-
-Original HTML-Tree author:
-	Gisle Aas.
-
-Former Authors:
-	Sean M. Burke.
-	Andy Lester.
-	Pete Krawczyk C<< <petek@cpan.org> >>.
-
-=head1 COPYRIGHT
-
-Copyright 1995-1998 Gisle Aas; 1999-2004 Sean M. Burke; 
-2005 Andy Lester; 2006 Pete Krawczyk.  (Except the articles
-contained in HTML::Tree::AboutObjects, HTML::Tree::AboutTrees, and
-HTML::Tree::Scanning, which are all copyright 2000 The Perl Journal.)
-
-Except for those three TPJ articles, the whole HTML-Tree distribution,
-of which this file is a part, is free software; you can redistribute
-it and/or modify it under the same terms as Perl itself.
-
-Those three TPJ articles may be distributed under the same terms as
-Perl itself.
-
-The programs in this library are distributed in the hope that they
-will be useful, but without any warranty; without even the implied
-warranty of merchantability or fitness for a particular purpose.
 
 =cut
 

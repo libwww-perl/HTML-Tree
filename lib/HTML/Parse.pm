@@ -2,9 +2,7 @@ package HTML::Parse;
 
 use 5.008;
 
-=head1 NAME
-
-HTML::Parse - Deprecated, a wrapper around HTML::TreeBuilder
+#ABSTRACT: Deprecated, a wrapper around HTML::TreeBuilder
 
 =head1 SYNOPSIS
 
@@ -70,7 +68,7 @@ false.
 
 =item $HTML::Parse::WARN
 
-Call warn() with an apropriate message for syntax errors.  Default is
+Call warn() with an appropriate message for syntax errors.  Default is
 false.
 
 =back
@@ -84,36 +82,14 @@ finished with them.  See L<HTML::TreeBuilder>.
 
 L<HTML::Parser>, L<HTML::TreeBuilder>, L<HTML::Element>
 
-=head1 COPYRIGHT
-
-Copyright 1995-1998 Gisle Aas, 1999-2004 Sean M. Burke, 2005 Andy Lester,
-2006 Pete Krawczyk.
-
-This library is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself.
-
-This program is distributed in the hope that it will be useful, but
-without any warranty; without even the implied warranty of
-merchantability or fitness for a particular purpose.
-
-=head1 AUTHOR
-Current Author:
-	Jeff Fearn C<< <jfearn@cpan.org> >>.
-
-Original HTML-Tree author:
-	Gisle Aas.
-
-Former Authors:
-	Sean M. Burke.
-	Andy Lester.
-	Pete Krawczyk C<< <petek@cpan.org> >>.
-
 =cut
 
 use warnings;
 use strict;
 
-use vars qw(@ISA $VERSION @EXPORT
+# VERSION from OurPkgVersion
+
+use vars qw(@ISA @EXPORT
     $IMPLICIT_TAGS $IGNORE_UNKNOWN $IGNORE_TEXT $WARN
 );
 
@@ -128,8 +104,6 @@ $IGNORE_TEXT    = 0;
 $WARN           = 0;
 
 require HTML::TreeBuilder;
-
-$VERSION = 4.2;
 
 sub parse_html {
     my $p = $_[1];

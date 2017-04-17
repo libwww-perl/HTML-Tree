@@ -1,30 +1,83 @@
 package HTML::Element;
 
-=head1 NAME
-
-HTML::Element - Class for objects that represent HTML elements
-
-=head1 VERSION
-
-Version 4.2
-
-=cut
+# ABSTRACT: Class for objects that represent HTML elements
 
 use strict;
+use warnings;
+
+# VERSION from OurPkgVersion
+
 use Carp           ();
 use HTML::Entities ();
 use HTML::Tagset   ();
 use integer;    # vroom vroom!
-
-use vars qw( $VERSION );
-$VERSION = 4.2;
 
 # This controls encoding entities on output.
 # When set entities won't be re-encoded.
 # Defaulting off because parser defaults to unencoding entities
 our $encoded_content = 0;
 
-use vars qw($html_uc $Debug $ID_COUNTER %list_type_to_sub);
+use vars qw($html_uc $Debug $ID_COUNTER $VERSION %list_type_to_sub);
+
+# Set up support for weak references, if possible:
+my $using_weaken;
+
+#=head1 CLASS METHODS
+
+=method-class Use_Weak_Refs
+
+  $enabled = HTML::Element->Use_Weak_Refs;
+  HTML::Element->Use_Weak_Refs( $enabled );
+
+This method allows you to check whether weak reference support is
+enabled, and to enable or disable it. For details, see L</"Weak References">.
+C<$enabled> is true if weak references are enabled.
+
+You should not switch this in the middle of your program, and you
+probably shouldn't use it at all.  Existing trees are not affected by
+this method (until you start modifying nodes in them).
+
+Throws an exception if you attempt to enable weak references and your
+Perl or Scalar::Util does not support them.
+
+Disabling weak reference support is deprecated.
+
+=cut
+
+sub Use_Weak_Refs {
+    my $self_or_class = shift;
+
+    if (@_) {    # set
+        $using_weaken = !! shift; # Normalize boolean value
+        Carp::croak("The installed Scalar::Util lacks support for weak references")
+              if $using_weaken and not defined &Scalar::Util::weaken;
+
+        no warnings 'redefine';
+        *_weaken = $using_weaken ? \&Scalar::Util::weaken : sub ($) {};
+    } # end if setting value
+
+    return $using_weaken;
+} # end Use_Weak_Refs
+
+BEGIN {
+    # Attempt to import weaken from Scalar::Util, but don't complain
+    # if we can't.  Also, rename it to _weaken.
+    require Scalar::Util;
+
+    __PACKAGE__->Use_Weak_Refs(defined &Scalar::Util::weaken);
+}
+
+sub import {
+    my $class = shift;
+
+    for (@_) {
+        if (/^-(no_?)?weak$/) {
+            $class->Use_Weak_Refs(not $1);
+        } else {
+            Carp::croak("$_ is not exported by the $class module");
+        }
+    }
+} # end import
 
 =head1 SYNOPSIS
 
@@ -152,17 +205,52 @@ based on it.
 see Niklaus Wirth's I<Algorithms + Data Structures = Programs> or
 Donald Knuth's I<The Art of Computer Programming, Volume 1>.)
 
+=head2 Weak References
+
+TL;DR summary: S<C<use HTML::TreeBuilder 5 -weak;>> and forget about
+the C<delete> method (except for pruning a node from a tree).
+
+Because HTML::Element stores a reference to the parent element, Perl's
+reference-count garbage collection doesn't work properly with
+HTML::Element trees.  Starting with version 5.00, HTML::Element uses
+weak references (if available) to prevent that problem.  Weak
+references were introduced in Perl 5.6.0, but you also need a version
+of L<Scalar::Util> that provides the C<weaken> function.
+
+Weak references are enabled by default.  If you want to be certain
+they're in use, you can say S<C<use HTML::Element 5 -weak;>>.  You
+must include the version number; previous versions of HTML::Element
+ignored the import list entirely.
+
+To disable weak references, you can say S<C<use HTML::Element -noweak;>>.
+This is a global setting.  B<This feature is deprecated> and is
+provided only as a quick fix for broken code.  If your code does not
+work properly with weak references, you should fix it immediately, as
+weak references may become mandatory in a future version.  Generally,
+all you need to do is keep a reference to the root of the tree until
+you're done working with it.
+
+Because HTML::TreeBuilder is a subclass of HTML::Element, you can also
+import C<-weak> or C<-noweak> from HTML::TreeBuilder: e.g.
+S<C<use HTML::TreeBuilder: 5 -weak;>>.
+
 =cut
 
 $Debug = 0 unless defined $Debug;
 
-=head2 Version
+#=head1 SUBROUTINES
 
-Why is this a sub?
+=sub Version
+
+This subroutine is deprecated.  Please use the standard VERSION method
+(e.g. C<< HTML::Element->VERSION >>) instead.
 
 =cut
 
-sub Version { $VERSION; }
+sub Version {
+    Carp::carp("Deprecated subroutine HTML::Element::Version called");
+    $VERSION;
+}
 
 my $nillio = [];
 
@@ -180,7 +268,7 @@ my ( $ABORT, $PRUNE, $PRUNE_SOFTLY, $OK, $PRUNE_UP )
     ABORT  PRUNE   PRUNE_SOFTLY   OK   PRUNE_UP
 );
 
-=head2 ABORT OK PRUNE PRUNE_SOFTLY PRUNE_UP
+=sub ABORT OK PRUNE PRUNE_SOFTLY PRUNE_UP
 
 Constants for signalling back to the traverser
 
@@ -225,9 +313,11 @@ my $NAME_CHAR
 
 #==========================================================================
 
-=head1 BASIC METHODS
+#=head1 BASIC METHODS
 
-=head2 $h = HTML::Element->new('tag', 'attrname' => 'value', ... )
+=method-basic new
+
+  $h = HTML::Element->new('tag', 'attrname' => 'value', ... );
 
 This constructor method returns a new HTML::Element object.  The tag
 name is a required argument; it will be forced to lowercase.
@@ -277,12 +367,16 @@ sub new {
     if ( $tag eq 'html' ) {
         $self->{'_pos'} = undef;
     }
+    _weaken($self->{'_parent'}) if $self->{'_parent'};
     return $self;
 }
 
-=head2 $h->attr('attr') or $h->attr('attr', 'value')
+=method-basic attr
 
-Returns (optionally sets) the value of the given attribute of $h.  The
+  $value = $h->attr('attr');
+  $old_value = $h->attr('attr', $new_value);
+
+Returns (optionally sets) the value of the given attribute of C<$h>.  The
 attribute name (but not the value, if provided) is forced to
 lowercase.  If trying to read the value of an attribute not present
 for this element, the return value is undef.
@@ -316,10 +410,13 @@ sub attr {
     }
 }
 
-=head2 $h->tag() or $h->tag('tagname')
+=method-basic tag
+
+  $tagname = $h->tag();
+  $h->tag('tagname');
 
 Returns (optionally sets) the tag name (also known as the generic
-identifier) for the element $h.  In setting, the tag name is always
+identifier) for the element C<$h>.  In setting, the tag name is always
 converted to lower case.
 
 There are four kinds of "pseudo-elements" that show up as
@@ -423,7 +520,10 @@ sub tag {
     }
 }
 
-=head2 $h->parent() or $h->parent($new_parent)
+=method-basic parent
+
+  $parent = $h->parent();
+  $h->parent($new_parent);
 
 Returns (optionally sets) the parent (aka "container") for this element.
 The parent should either be undef, or should be another element.
@@ -432,7 +532,7 @@ You B<should not> use this to directly set the parent of an element.
 Instead use any of the other methods under "Structure-Modifying
 Methods", below.
 
-Note that not($h->parent) is a simple test for whether $h is the
+Note that C<< not($h->parent) >> is a simple test for whether C<$h> is the
 root of its subtree.
 
 =cut
@@ -442,14 +542,17 @@ sub parent {
     if (@_) {    # set
         Carp::croak "an element can't be made its own parent"
             if defined $_[0] and ref $_[0] and $self eq $_[0];    # sanity
-        $self->{'_parent'} = $_[0];
+        _weaken($self->{'_parent'} = $_[0]);
     }
     else {
         $self->{'_parent'};                                       # get
     }
 }
 
-=head2 $h->content_list()
+=method-basic content_list
+
+  @content = $h->content_list();
+  $num_children = $h->content_list();
 
 Returns a list of the child nodes of this element -- i.e., what
 nodes (elements or text segments) are inside/under this element. (Note
@@ -466,7 +569,9 @@ sub content_list {
         : scalar @{ shift->{'_content'} || return 0 };
 }
 
-=head2 $h->content()
+=method-basic content
+
+  $content_array_ref = $h->content(); # may return undef
 
 This somewhat deprecated method returns the content of this element;
 but unlike content_list, this returns either undef (which you should
@@ -500,7 +605,9 @@ sub content {
     return shift->{'_content'};
 }
 
-=head2 $h->content_array_ref()
+=method-basic content_array_ref
+
+  $content_array_ref = $h->content_array_ref(); # never undef
 
 This is like C<content> (with all its caveats and deprecations) except
 that it is guaranteed to return an array reference.  That is, if the
@@ -515,7 +622,9 @@ sub content_array_ref {
     return shift->{'_content'} ||= [];
 }
 
-=head2 $h->content_refs_list
+=method-basic content_refs_list
+
+  @content_refs = $h->content_refs_list;
 
 This returns a list of scalar references to each element of C<$h>'s
 content list.  This is useful in case you want to in-place edit any
@@ -547,7 +656,10 @@ sub content_refs_list {
     return \( @{ shift->{'_content'} || return () } );
 }
 
-=head2 $h->implicit() or $h->implicit($bool)
+=method-basic implicit
+
+  $is_implicit = $h->implicit();
+  $h->implicit($make_implicit);
 
 Returns (optionally sets) the "_implicit" attribute.  This attribute is
 a flag that's used for indicating that the element was not originally
@@ -561,7 +673,10 @@ sub implicit {
     return shift->attr( '_implicit', @_ );
 }
 
-=head2 $h->pos() or $h->pos($element)
+=method-basic pos
+
+  $pos = $h->pos();
+  $h->pos($element);
 
 Returns (and optionally sets) the "_pos" (for "current I<pos>ition")
 pointer of C<$h>.  This attribute is a pointer used during some
@@ -569,7 +684,7 @@ parsing operations, whose value is whatever HTML::Element element
 at or under C<$h> is currently "open", where C<< $h->insert_element(NEW) >>
 will actually insert a new element.
 
-(This has nothing to do with the Perl function called "pos", for
+(This has nothing to do with the Perl function called C<pos>, for
 controlling where regular expression matching starts.)
 
 If you set C<< $h->pos($element) >>, be sure that C<$element> is
@@ -598,7 +713,9 @@ sub pos {
     return $self;
 }
 
-=head2 $h->all_attr()
+=method-basic all_attr
+
+  %attr = $h->all_attr();
 
 Returns all this element's attributes and values, as key-value pairs.
 This will include any "internal" attributes (i.e., ones not present
@@ -611,9 +728,13 @@ Example output of C<< $h->all_attr() >> :
 C<'_parent', >I<[object_value]>C< , '_tag', 'em', 'lang', 'en-US',
 '_content', >I<[array-ref value]>.
 
-=head2 $h->all_attr_names()
+=method-basic all_attr_names
 
-Like all_attr, but only returns the names of the attributes.
+  @names = $h->all_attr_names();
+  $num_attrs = $h->all_attr_names();
+
+Like C<all_attr>, but only returns the names of the attributes.
+In scalar context, returns the number of attributes.
 
 Example output of C<< $h->all_attr_names() >> :
 C<'_parent', '_tag', 'lang', '_content', >.
@@ -633,14 +754,19 @@ sub all_attr_names {
     return keys %{ $_[0] };
 }
 
-=head2 $h->all_external_attr()
+=method-basic all_external_attr
+
+  %attr = $h->all_external_attr();
 
 Like C<all_attr>, except that internal attributes are not present.
 
-=head2 $h->all_external_attr_names()
+=method-basic all_external_attr_names
 
-Like C<all_external_attr_names>, except that internal attributes' names
-are not present.
+  @names = $h->all_external_attr_names();
+  $num_attrs = $h->all_external_attr_names();
+
+Like C<all_attr_names>, except that internal attributes' names
+are not present (or counted).
 
 =cut
 
@@ -656,10 +782,17 @@ sub all_external_attr_names {
     return grep !( length($_) && substr( $_, 0, 1 ) eq '_' ), keys %{ $_[0] };
 }
 
-=head2 $h->id() or $h->id($string)
+=method-basic id
+
+  $id = $h->id();
+  $h->id($string);
 
 Returns (optionally sets to C<$string>) the "id" attribute.
 C<< $h->id(undef) >> deletes the "id" attribute.
+
+C<< $h->id(...) >> is basically equivalent to C<< $h->attr('id', ...) >>,
+except that when setting the attribute, this method returns the new value,
+not the old value.
 
 =cut
 
@@ -680,7 +813,10 @@ sub id {
     }
 }
 
-=head2 $h->idf() or $h->idf($string)
+=method-basic idf
+
+  $id = $h->idf();
+  $h->idf($string);
 
 Just like the C<id> method, except that if you call C<< $h->idf() >> and
 no "id" attribute is defined for this element, then it's set to a
@@ -727,7 +863,9 @@ sub idf {
 These methods are provided for modifying the content of trees
 by adding or changing nodes as parents or children of other nodes.
 
-=head2 $h->push_content($element_or_text, ...)
+=method-struct push_content
+
+  $h->push_content($element_or_text, ...);
 
 Adds the specified items to the I<end> of the content list of the
 element C<$h>.  The items of content to be added should each be either a
@@ -743,11 +881,13 @@ list of C<$h>.  This means you can say things concise things like:
     ]
   );
 
-See C<new_from_lol> method's documentation, far below, for more
+See the L</new_from_lol> method's documentation, far below, for more
 explanation.
 
+Returns C<$h> (the element itself).
+
 The push_content method will try to consolidate adjacent text segments
-while adding to the content list.  That's to say, if $h's content_list is
+while adding to the content list.  That's to say, if C<$h>'s C<content_list> is
 
   ('foo bar ', $some_node, 'baz!')
 
@@ -798,11 +938,11 @@ sub push_content {
 
             # magically call new_from_lol
             push @$content, $self->new_from_lol($_);
-            $content->[-1]->{'_parent'} = $self;
+            _weaken($content->[-1]->{'_parent'} = $self);
         }
         elsif ( ref($_) ) {    # insert an element
             $_->detach if $_->{'_parent'};
-            $_->{'_parent'} = $self;
+            _weaken($_->{'_parent'} = $self);
             push( @$content, $_ );
         }
         else {                 # insert text segment
@@ -819,9 +959,11 @@ sub push_content {
     return $self;
 }
 
-=head2 $h->unshift_content($element_or_text, ...)
+=method-struct unshift_content
 
-Just like C<push_content>, but adds to the I<beginning> of the $h
+  $h->unshift_content($element_or_text, ...)
+
+Just like C<push_content>, but adds to the I<beginning> of the C<$h>
 element's content list.
 
 The items of content to be added should each be
@@ -830,6 +972,8 @@ an arrayref (which is fed thru C<new_from_lol>).
 
 The unshift_content method will try to consolidate adjacent text segments
 while adding to the content list.  See above for a discussion of this.
+
+Returns C<$h> (the element itself).
 
 =cut
 
@@ -843,11 +987,11 @@ sub unshift_content {
 
             # magically call new_from_lol
             unshift @$content, $self->new_from_lol($_);
-            $content->[0]->{'_parent'} = $self;
+            _weaken($content->[0]->{'_parent'} = $self);
         }
         elsif ( ref $_ ) {    # insert an element
             $_->detach if $_->{'_parent'};
-            $_->{'_parent'} = $self;
+            _weaken($_->{'_parent'} = $self);
             unshift( @$content, $_ );
         }
         else {                # insert text segment
@@ -866,20 +1010,23 @@ sub unshift_content {
 
 # Cf.  splice ARRAY,OFFSET,LENGTH,LIST
 
-=head2 $h->splice_content($offset, $length, $element_or_text, ...)
+=method-struct splice_content
 
-Detaches the elements from $h's list of content-nodes, starting at
-$offset and continuing for $length items, replacing them with the
+  @removed = $h->splice_content($offset, $length,
+                                $element_or_text, ...);
+
+Detaches the elements from C<$h>'s list of content-nodes, starting at
+C<$offset> and continuing for C<$length> items, replacing them with the
 elements of the following list, if any.  Returns the elements (if any)
-removed from the content-list.  If $offset is negative, then it starts
+removed from the content-list.  If C<$offset> is negative, then it starts
 that far from the end of the array, just like Perl's normal C<splice>
-function.  If $length and the following list is omitted, removes
-everything from $offset onward.
+function.  If C<$length> and the following list is omitted, removes
+everything from C<$offset> onward.
 
 The items of content to be added (if any) should each be either a text
-segment (a string), an arrayref (which is fed thru C<new_from_lol>),
+segment (a string), an arrayref (which is fed thru L</new_from_lol>),
 or an HTML::Element object that's not already
-a child of $h.
+a child of C<$h>.
 
 =cut
 
@@ -887,7 +1034,6 @@ sub splice_content {
     my ( $self, $offset, $length, @to_add ) = @_;
     Carp::croak "splice_content requires at least one argument"
         if @_ < 2;    # at least $h->splice_content($offset);
-    return $self unless @_;
 
     my $content = ( $self->{'_content'} ||= [] );
 
@@ -898,11 +1044,11 @@ sub splice_content {
         foreach my $n (@to_add) {
             if ( ref($n) eq 'ARRAY' ) {
                 $n = $self->new_from_lol($n);
-                $n->{'_parent'} = $self;
+                _weaken($n->{'_parent'} = $self);
             }
             elsif ( ref($n) ) {
                 $n->detach;
-                $n->{'_parent'} = $self;
+                _weaken($n->{'_parent'} = $self);
             }
         }
         @out = splice @$content, $offset, $length, @to_add;
@@ -916,19 +1062,21 @@ sub splice_content {
     return @out;
 }
 
-=head2 $h->detach()
+=method-struct detach
 
-This unlinks $h from its parent, by setting its 'parent' attribute to
+  $old_parent = $h->detach();
+
+This unlinks C<$h> from its parent, by setting its 'parent' attribute to
 undef, and by removing it from the content list of its parent (if it
 had one).  The return value is the parent that was detached from (or
-undef, if $h had no parent to start with).  Note that neither $h nor
+undef, if C<$h> had no parent to start with).  Note that neither C<$h> nor
 its parent are explicitly destroyed.
 
 =cut
 
 sub detach {
     my $self = $_[0];
-    return unless ( my $parent = $self->{'_parent'} );
+    return undef unless ( my $parent = $self->{'_parent'} );
     $self->{'_parent'} = undef;
     my $cohort = $parent->{'_content'} || return $parent;
     @$cohort = grep { not( ref($_) and $_ eq $self ) } @$cohort;
@@ -938,11 +1086,13 @@ sub detach {
     return $parent;
 }
 
-=head2 $h->detach_content()
+=method-struct detach_content
 
-This unlinks all of $h's children from $h, and returns them.
+  @old_content = $h->detach_content();
+
+This unlinks all of C<$h>'s children from C<$h>, and returns them.
 Note that these are not explicitly destroyed; for that, you
-can just use $h->delete_content.
+can just use C<< $h->delete_content >>.
 
 =cut
 
@@ -954,7 +1104,9 @@ sub detach_content {
     return splice @$c;
 }
 
-=head2 $h->replace_with( $element_or_text, ... ) 
+=method-struct replace_with
+
+  $h->replace_with( $element_or_text, ... )
 
 This replaces C<$h> in its parent's content list with the nodes
 specified.  The element C<$h> (which by then may have no parent)
@@ -963,8 +1115,8 @@ The list of nodes to insert may contain C<$h>, but at most once.
 Aside from that possible exception, the nodes to insert should not
 already be children of C<$h>'s parent.
 
-Also, note that this method does not destroy C<$h> -- use
-C<< $h->replace_with(...)->delete >> if you need that.
+Also, note that this method does not destroy C<$h> if weak references are
+turned off -- use C<< $h->replace_with(...)->delete >> if you need that.
 
 =cut
 
@@ -994,11 +1146,11 @@ sub replace_with {
         }
         elsif ( ref($_) eq 'ARRAY' ) {
             $_ = $self->new_from_lol($_);
-            $_->{'_parent'} = $parent;
+            _weaken($_->{'_parent'} = $parent);
         }
         else {
             $_->detach;
-            $_->{'_parent'} = $parent;
+            _weaken($_->{'_parent'} = $parent);
 
             # each of these are necessary
         }
@@ -1013,7 +1165,9 @@ sub replace_with {
     return $self;
 }
 
-=head2 $h->preinsert($element_or_text...)
+=method-struct preinsert
+
+  $h->preinsert($element_or_text...);
 
 Inserts the given nodes right BEFORE C<$h> in C<$h>'s parent's
 content list.  This causes a fatal error if C<$h> has no parent.
@@ -1028,7 +1182,9 @@ sub preinsert {
     return $self->replace_with( @_, $self );
 }
 
-=head2 $h->postinsert($element_or_text...)
+=method-struct postinsert
+
+  $h->postinsert($element_or_text...)
 
 Inserts the given nodes right AFTER C<$h> in C<$h>'s parent's content
 list.  This causes a fatal error if C<$h> has no parent.  None of
@@ -1043,12 +1199,14 @@ sub postinsert {
     return $self->replace_with( $self, @_ );
 }
 
-=head2 $h->replace_with_content()
+=method-struct replace_with_content
+
+  $h->replace_with_content();
 
 This replaces C<$h> in its parent's content list with its own content.
 The element C<$h> (which by then has no parent or content of its own) is
 returned.  This causes a fatal error if C<$h> has no parent.  Also, note
-that this does not destroy C<$h> -- use
+that this does not destroy C<$h> if weak references are turned off -- use
 C<< $h->replace_with_content->delete >> if you need that.
 
 =cut
@@ -1069,17 +1227,22 @@ sub replace_with_content {
     $self->{'_parent'} = undef;    # detach $self from its parent
 
     # Update parentage link, removing from $self's content list
-    for ( splice @$content_r ) { $_->{'_parent'} = $parent if ref $_ }
+    for ( splice @$content_r ) { _weaken($_->{'_parent'} = $parent) if ref $_ }
 
     return $self;                  # note: doesn't destroy it.
 }
 
-=head2 $h->delete_content()
+=method-struct delete_content
+
+  $h->delete_content();
+  $h->destroy_content(); # alias
 
 Clears the content of C<$h>, calling C<< $h->delete >> for each content
 element.  Compare with C<< $h->detach_content >>.
 
 Returns C<$h>.
+
+C<destroy_content> is an alias for this method.
 
 =cut
 
@@ -1105,22 +1268,27 @@ sub delete_content {
     $_[0];
 }
 
-=head2 $h->delete() destroy destroy_content
+=method-struct delete
+
+  $h->delete();
+  $h->destroy(); # alias
 
 Detaches this element from its parent (if it has one) and explicitly
 destroys the element and all its descendants.  The return value is
-undef.
+the empty list (or C<undef> in scalar context).
 
-Perl uses garbage collection based on reference counting; when no
-references to a data structure exist, it's implicitly destroyed --
-i.e., when no value anywhere points to a given object anymore, Perl
-knows it can free up the memory that the now-unused object occupies.
+Before version 5.00 of HTML::Element, you had to call C<delete> when
+you were finished with the tree, or your program would leak memory.
+This is no longer necessary if weak references are enabled, see
+L</"Weak References">.
 
-But this fails with HTML::Element trees, because a parent element
-always holds references to its children, and its children elements
-hold references to the parent, so no element ever looks like it's
-I<not> in use.  So, to destroy those elements, you need to call
-C<< $h->delete >> on the parent.
+=method-struct destroy
+
+An alias for L</delete>.
+
+=method-struct destroy_content
+
+An alias for L</delete_content>.
 
 =cut
 
@@ -1141,7 +1309,9 @@ sub delete {
     return;
 }
 
-=head2 $h->clone()
+=method-struct clone
+
+  $copy = $h->clone();
 
 Returns a copy of the element (whose children are clones (recursively)
 of the original's children, if any).
@@ -1175,18 +1345,20 @@ sub clone {
         $new->{'_content'}
             = [ ref($it)->clone_list( @{ $it->{'_content'} } ) ];
         for ( @{ $new->{'_content'} } ) {
-            $_->{'_parent'} = $new if ref $_;
+            _weaken($_->{'_parent'} = $new) if ref $_;
         }
     }
 
     return $new;
 }
 
-=head2 HTML::Element->clone_list(...nodes...)
+=method-struct clone_list
+
+  @copies = HTML::Element->clone_list(...nodes...);
 
 Returns a list consisting of a copy of each node given.
 Text segments are simply copied; elements are cloned by
-calling $it->clone on each of them.
+calling C<< $it->clone >> on each of them.
 
 Note that this must be called as a class method, not as an instance
 method.  C<clone_list> will croak if called as an instance method.
@@ -1208,7 +1380,9 @@ sub clone_list {
     } @_;
 }
 
-=head2 $h->normalize_content
+=method-struct normalize_content
+
+  $h->normalize_content
 
 Normalizes the content of C<$h> -- i.e., concatenates any adjacent
 text nodes.  (Any undefined text segments are turned into empty-strings.)
@@ -1275,10 +1449,12 @@ sub normalize_content {
     return;
 }
 
-=head2 $h->delete_ignorable_whitespace()
+=method-struct delete_ignorable_whitespace
+
+  $h->delete_ignorable_whitespace()
 
 This traverses under C<$h> and deletes any text segments that are ignorable
-whitespace.  You should not use this if C<$h> under a 'pre' element.
+whitespace.  You should not use this if C<$h> is under a C<< <pre> >> element.
 
 =cut
 
@@ -1389,12 +1565,15 @@ sub delete_ignorable_whitespace {
     return;
 }
 
-=head2 $h->insert_element($element, $implicit)
+=method-struct insert_element
+
+  $h->insert_element($element, $implicit);
 
 Inserts (via push_content) a new element under the element at
 C<< $h->pos() >>.  Then updates C<< $h->pos() >> to point to the inserted
 element, unless $element is a prototypically empty element like
-"br", "hr", "img", etc.  The new C<< $h->pos() >> is returned.  This
+C<< <br> >>, C<< <hr> >>, C<< <img> >>, etc.
+The new C<< $h->pos() >> is returned.  This
 method is useful only if your particular tree task involves setting
 C<< $h->pos() >>.
 
@@ -1460,11 +1639,12 @@ sub _fold_case_NOT {
 
 #==========================================================================
 
-=head1 DUMPING METHODS
+#=head1 DUMPING METHODS
 
-=head2 $h->dump()
+=method-dump dump
 
-=head2 $h->dump(*FH)  ; # or *FH{IO} or $fh_obj
+  $h->dump()
+  $h->dump(*FH)  ; # or *FH{IO} or $fh_obj
 
 Prints the element and all its children to STDOUT (or to a specified
 filehandle), in a format useful
@@ -1503,11 +1683,12 @@ sub dump {
     }
 }
 
-=head2 $h->as_HTML() or $h->as_HTML($entities)
+=method-dump as_HTML
 
-=head2 or $h->as_HTML($entities, $indent_char)
-
-=head2 or $h->as_HTML($entities, $indent_char, \%optional_end_tags)
+  $s = $h->as_HTML();
+  $s = $h->as_HTML($entities);
+  $s = $h->as_HTML($entities, $indent_char);
+  $s = $h->as_HTML($entities, $indent_char, \%optional_end_tags);
 
 Returns a string representing in HTML the element and its
 descendants.  The optional argument C<$entities> specifies a string of
@@ -1523,11 +1704,11 @@ set to "\t", or some number of spaces, if you specify it).
 If C<\%optional_end_tags> is specified and defined, it should be
 a reference to a hash that holds a true value for every tag name
 whose end tag is optional.  Defaults to
-C<\%HTML::Element::optionalEndTag>, which is an alias to 
+C<\%HTML::Element::optionalEndTag>, which is an alias to
 C<%HTML::Tagset::optionalEndTag>, which, at time of writing, contains
 true values for C<p, li, dt, dd>.  A useful value to pass is an empty
 hashref, C<{}>, which means that no end-tags are optional for this dump.
-Otherwise, possibly consider copying C<%HTML::Tagset::optionalEndTag> to a 
+Otherwise, possibly consider copying C<%HTML::Tagset::optionalEndTag> to a
 hash of your own, adding or deleting values as you like, and passing
 a reference to that hash.
 
@@ -1583,7 +1764,7 @@ sub as_HTML {
                         $last_tag_tightenable = $this_tag_tightenable;
 
                         ++$nonindentable_ancestors
-                            if $tag eq 'pre'
+                            if $tag eq 'pre' or $tag eq 'textarea'
                                 or $HTML::Tagset::isCDATA_Parent{$tag};
 
                     }
@@ -1594,7 +1775,7 @@ sub as_HTML {
                     {
 
                         # on the way out
-                        if (   $tag eq 'pre'
+                        if (   $tag eq 'pre' or $tag eq 'textarea'
                             or $HTML::Tagset::isCDATA_Parent{$tag} )
                         {
                             --$nonindentable_ancestors;
@@ -1735,25 +1916,46 @@ sub as_HTML {
     return join( '', @html );
 }
 
-=head2 $h->as_text()
+=method-dump as_text
 
-=head2 $h->as_text(skip_dels => 1, extra_chars => '\xA0')
+  $s = $h->as_text();
+  $s = $h->as_text(skip_dels => 1);
 
 Returns a string consisting of only the text parts of the element's
-descendants.
+descendants.  Any whitespace inside the element is included unchanged,
+but whitespace not in the tree is never added.  But remember that
+whitespace may be ignored or compacted by HTML::TreeBuilder during
+parsing (depending on the value of the C<ignore_ignorable_whitespace>
+and C<no_space_compacting> attributes).  Also, since whitespace is
+never added during parsing,
 
-Text under 'script' or 'style' elements is never included in what's
-returned.  If C<skip_dels> is true, then text content under "del"
-nodes is not included in what's returned.
+  HTML::TreeBuilder->new_from_content("<p>a</p><p>b</p>")
+                   ->as_text;
 
-=head2 $h->as_trimmed_text(...) as_text_trimmed
+returns C<"ab">, not C<"a b"> or C<"a\nb">.
 
-This is just like as_text(...) except that leading and trailing
+Text under C<< <script> >> or C<< <style> >> elements is never
+included in what's returned.  If C<skip_dels> is true, then text
+content under C<< <del> >> nodes is not included in what's returned.
+
+=for Pod::Coverage
+as_text_trimmed
+
+=method-dump as_trimmed_text
+
+  $s = $h->as_trimmed_text(...);
+  $s = $h->as_trimmed_text(extra_chars => '\xA0'); # remove &nbsp;
+  $s = $h->as_text_trimmed(...); # alias
+
+This is just like C<as_text(...)> except that leading and trailing
 whitespace is deleted, and any internal whitespace is collapsed.
 
-This will not remove hard spaces, unicode spaces, or any other
-non ASCII white space unless you supplye the extra characters as
-a string argument. e.g. $h->as_trimmed_text(extra_chars => '\xA0')
+This will not remove non-breaking spaces, Unicode spaces, or any other
+non-ASCII whitespace unless you supply the extra characters as
+a string argument (e.g. C<< $h->as_trimmed_text(extra_chars => '\xA0') >>).
+C<extra_chars> may be any string that can appear inside a character
+class, including ranges like C<a-z>, POSIX character classes like
+C<[:alpha:]>, and character class escapes like C<\p{Zs}>.
 
 =cut
 
@@ -1786,7 +1988,8 @@ sub as_text {
 sub as_trimmed_text {
     my ( $this, %options ) = @_;
     my $text = $this->as_text(%options);
-    my $extra_chars = $options{'extra_chars'} || '';
+    my $extra_chars = defined $options{'extra_chars'}
+                        ? $options{'extra_chars'} : '';
 
     $text =~ s/[\n\r\f\t$extra_chars ]+$//s;
     $text =~ s/^[\n\r\f\t$extra_chars ]+//s;
@@ -1796,7 +1999,9 @@ sub as_trimmed_text {
 
 sub as_text_trimmed { shift->as_trimmed_text(@_) }   # alias, because I forget
 
-=head2 $h->as_XML()
+=method-dump as_XML
+
+  $s = $h->as_XML()
 
 Returns a string representing in XML the element and its descendants.
 
@@ -1886,7 +2091,9 @@ sub _xml_escape {
     return;
 }
 
-=head2 $h->as_Lisp_form()
+=method-dump as_Lisp_form
+
+  $s = $h->as_Lisp_form();
 
 Returns a string representing the element and its descendants as a
 Lisp form.  Unsafe characters are encoded as octal escapes.
@@ -1976,7 +2183,10 @@ sub as_Lisp_form {
     return join '', @out;
 }
 
-=head2 format
+=method-dump format
+
+  $s = $h->format; # use HTML::FormatText
+  $s = $h->format($formatter);
 
 Formats text output. Defaults to HTML::FormatText.
 
@@ -1987,13 +2197,17 @@ Takes a second argument that is a reference to a formatter.
 sub format {
     my ( $self, $formatter ) = @_;
     unless ( defined $formatter ) {
+        # RECOMMEND PREREQ: HTML::FormatText
         require HTML::FormatText;
         $formatter = HTML::FormatText->new();
     }
     $formatter->format($self);
 }
 
-=head2 $h->starttag() or $h->starttag($entities)
+=method-dump starttag
+
+  $start = $h->starttag();
+  $start = $h->starttag($entities);
 
 Returns a string representing the complete start tag for the element.
 I.e., leading "<", tag name, attributes, and trailing ">".
@@ -2076,7 +2290,9 @@ sub starttag {
     }
 }
 
-=head2 starttag_XML
+=method-dump starttag_XML
+
+  $start = $h->starttag_XML();
 
 Returns a string representing the complete start tag for the element.
 
@@ -2120,7 +2336,16 @@ sub starttag_XML {
     @_ == 3 ? "$tag />" : "$tag>";
 }
 
-=head2 $h->endtag() || endtag_XML
+=method-dump endtag
+
+  $end = $h->endtag();
+
+Returns a string representing the complete end tag for this element.
+I.e., "</", tag name, and ">".
+
+=method-dump endtag_XML
+
+  $end = $h->endtag_XML();
 
 Returns a string representing the complete end tag for this element.
 I.e., "</", tag name, and ">".
@@ -2131,7 +2356,6 @@ sub endtag {
     $html_uc ? "</\U$_[0]->{'_tag'}>" : "</\L$_[0]->{'_tag'}>";
 }
 
-# TODO: document?
 sub endtag_XML {
     "</$_[0]->{'_tag'}>";
 }
@@ -2382,17 +2606,19 @@ These methods all involve some structural aspect of the tree;
 either they report some aspect of the tree's structure, or they involve
 traversal down the tree, or walking up the tree.
 
-=head2 $h->is_inside('tag', ...) or $h->is_inside($element, ...)
+=method-second is_inside
 
-Returns true if the $h element is, or is contained anywhere inside an
+  $inside = $h->is_inside('tag', $element, ...);
+
+Returns true if the C<$h> element is, or is contained anywhere inside an
 element that is any of the ones listed, or whose tag name is any of
-the tag names listed.
+the tag names listed.  You can use any mix of elements and tag names.
 
 =cut
 
 sub is_inside {
     my $self = shift;
-    return unless @_;    # if no items specified, I guess this is right.
+    return 0 unless @_; # if no items specified, I guess this is right.
 
     my $current = $self;
 
@@ -2411,22 +2637,24 @@ sub is_inside {
     0;
 }
 
-=head2 $h->is_empty()
+=method-second is_empty
 
-Returns true if $h has no content, i.e., has no elements or text
-segments under it.  In other words, this returns true if $h is a leaf
+  $empty = $h->is_empty();
+
+Returns true if C<$h> has no content, i.e., has no elements or text
+segments under it.  In other words, this returns true if C<$h> is a leaf
 node, AKA a terminal node.  Do not confuse this sense of "empty" with
 another sense that it can have in SGML/HTML/XML terminology, which
-means that the element in question is of the type (like HTML's "hr",
-"br", "img", etc.) that I<can't> have any content.
+means that the element in question is of the type (like HTML's C<< <hr> >>,
+C<< <br> >>, C<< <img> >>, etc.) that I<can't> have any content.
 
-That is, a particular "p" element may happen to have no content, so
+That is, a particular C<< <p> >> element may happen to have no content, so
 $that_p_element->is_empty will be true -- even though the prototypical
-"p" element isn't "empty" (not in the way that the prototypical "hr"
-element is).
+C<< <p> >> element isn't "empty" (not in the way that the prototypical
+C<< <hr> >> element is).
 
 If you think this might make for potentially confusing code, consider
-simply using the clearer exact equivalent:  not($h->content_list)
+simply using the clearer exact equivalent:  C<< not($h->content_list) >>.
 
 =cut
 
@@ -2435,44 +2663,49 @@ sub is_empty {
     !$self->{'_content'} || !@{ $self->{'_content'} };
 }
 
-=head2 $h->pindex()
+=method-second pindex
+
+  $index = $h->pindex();
 
 Return the index of the element in its parent's contents array, such
-that $h would equal
+that C<$h> would equal
 
   $h->parent->content->[$h->pindex]
-  or
+  # or
   ($h->parent->content_list)[$h->pindex]
 
-assuming $h isn't root.  If the element $h is root, then
-$h->pindex returns undef.
+assuming C<$h> isn't root.  If the element C<$h> is root, then
+C<< $h->pindex >> returns C<undef>.
 
 =cut
 
 sub pindex {
     my $self = shift;
 
-    my $parent = $self->{'_parent'}    || return;
-    my $pc     = $parent->{'_content'} || return;
+    my $parent = $self->{'_parent'}    || return undef;
+    my $pc     = $parent->{'_content'} || return undef;
     for ( my $i = 0; $i < @$pc; ++$i ) {
         return $i if ref $pc->[$i] and $pc->[$i] eq $self;
     }
-    return;    # we shouldn't ever get here
+    return undef;               # we shouldn't ever get here
 }
 
 #--------------------------------------------------------------------------
 
-=head2 $h->left()
+=method-second left
+
+  $element = $h->left();
+  @elements = $h->left();
 
 In scalar context: returns the node that's the immediate left sibling
-of $h.  If $h is the leftmost (or only) child of its parent (or has no
+of C<$h>.  If C<$h> is the leftmost (or only) child of its parent (or has no
 parent), then this returns undef.
 
-In list context: returns all the nodes that're the left siblings of $h
-(starting with the leftmost).  If $h is the leftmost (or only) child
-of its parent (or has no parent), then this returns empty-list.
+In list context: returns all the nodes that're the left siblings of C<$h>
+(starting with the leftmost).  If C<$h> is the leftmost (or only) child
+of its parent (or has no parent), then this returns an empty list.
 
-(See also $h->preinsert(LIST).)
+(See also C<< $h->preinsert(LIST) >>.)
 
 =cut
 
@@ -2503,17 +2736,20 @@ sub left {
     return;
 }
 
-=head2 $h->right()
+=method-second right
+
+  $element = $h->right();
+  @elements = $h->right();
 
 In scalar context: returns the node that's the immediate right sibling
-of $h.  If $h is the rightmost (or only) child of its parent (or has
-no parent), then this returns undef.
+of C<$h>.  If C<$h> is the rightmost (or only) child of its parent (or has
+no parent), then this returns C<undef>.
 
 In list context: returns all the nodes that're the right siblings of
-$h, starting with the leftmost.  If $h is the rightmost (or only) child
-of its parent (or has no parent), then this returns empty-list.
+C<$h>, starting with the leftmost.  If C<$h> is the rightmost (or only) child
+of its parent (or has no parent), then this returns an empty list.
 
-(See also $h->postinsert(LIST).)
+(See also C<< $h->postinsert(LIST) >>.)
 
 =cut
 
@@ -2551,12 +2787,16 @@ sub right {
 
 #--------------------------------------------------------------------------
 
-=head2 $h->address()
+=method-second address
 
-Returns a string representing the location of this node in the tree.
+  $address = $h->address();
+  $element_or_text = $h->address($address);
+
+The first form (with no parameter) returns a string representing the
+location of C<$h> in the tree it is a member of.
 The address consists of numbers joined by a '.', starting with '0',
 and followed by the pindexes of the nodes in the tree that are
-ancestors of $h, starting from the top.
+ancestors of C<$h>, starting from the top.
 
 So if the way to get to a node starting at the root is to go to child
 2 of the root, then child 10 of that, and then child 0 of that, and
@@ -2567,17 +2807,17 @@ As a bit of a special case, the address of the root is simply "0".
 I forsee this being used mainly for debugging, but you may
 find your own uses for it.
 
-=head2 $h->address($address)
+  $element_or_text = $h->address($address);
 
-This returns the node (whether element or text-segment) at
-the given address in the tree that $h is a part of.  (That is,
-the address is resolved starting from $h->root.)
+This form returns the node (whether element or text-segment) at
+the given address in the tree that C<$h> is a part of.  (That is,
+the address is resolved starting from C<< $h->root >>.)
 
-If there is no node at the given address, this returns undef.
+If there is no node at the given address, this returns C<undef>.
 
 You can specify "relative addressing" (i.e., that indexing is supposed
-to start from $h and not from $h->root) by having the address start
-with a period -- e.g., $h->address(".3.2") will look at child 3 of $h,
+to start from C<$h> and not from C<< $h->root >>) by having the address start
+with a period -- e.g., C<< $h->address(".3.2") >> will look at child 3 of C<$h>,
 and child 2 of that.
 
 =cut
@@ -2602,18 +2842,18 @@ sub address {
             shift @stack;
         }
         else {                                   # absolute addressing
-            return unless 0 == shift @stack;   # to pop the initial 0-for-root
+            return undef unless 0 == shift @stack; # pop the initial 0-for-root
             $here = $_[0]->root;
         }
 
         while (@stack) {
-            return
+            return undef
                 unless $here->{'_content'}
                     and @{ $here->{'_content'} } > $stack[0];
 
             # make sure the index isn't too high
             $here = $here->{'_content'}[ shift @stack ];
-            return if @stack and not ref $here;
+            return undef if @stack and not ref $here;
 
             # we hit a text node when we expected a non-terminal element node
         }
@@ -2622,7 +2862,9 @@ sub address {
     }
 }
 
-=head2 $h->depth()
+=method-second depth
+
+  $depth = $h->depth();
 
 Returns a number expressing C<$h>'s depth within its tree, i.e., how many
 steps away it is from the root.  If C<$h> has no parent (i.e., is root),
@@ -2639,7 +2881,9 @@ sub depth {
     return $depth;
 }
 
-=head2 $h->root()
+=method-second root
+
+  $root = $h->root();
 
 Returns the element that's the top of C<$h>'s tree.  If C<$h> is
 root, this just returns C<$h>.  (If you want to test whether C<$h>
@@ -2656,14 +2900,16 @@ sub root {
     return $root;
 }
 
-=head2 $h->lineage()
+=method-second lineage
+
+  @lineage = $h->lineage();
 
 Returns the list of C<$h>'s ancestors, starting with its parent,
 and then that parent's parent, and so on, up to the root.  If C<$h>
 is root, this returns an empty list.
 
 If you simply want a count of the number of elements in C<$h>'s lineage,
-use $h->depth.
+use C<< $h->depth >>.
 
 =cut
 
@@ -2676,12 +2922,18 @@ sub lineage {
     return @lineage;
 }
 
-=head2 $h->lineage_tag_names()
+=method-second lineage_tag_names
 
-Returns the list of the tag names of $h's ancestors, starting
+  @names = $h->lineage_tag_names();
+
+Returns the list of the tag names of C<$h>'s ancestors, starting
 with its parent, and that parent's parent, and so on, up to the
-root.  If $h is root, this returns an empty list.
+root.  If C<$h> is root, this returns an empty list.
 Example output: C<('em', 'td', 'tr', 'table', 'body', 'html')>
+
+Equivalent to:
+
+  map { $_->tag } $h->lineage;
 
 =cut
 
@@ -2694,16 +2946,19 @@ sub lineage_tag_names {
     return @lineage_names;
 }
 
-=head2 $h->descendants()
+=method-second descendants
 
-In list context, returns the list of all $h's descendant elements,
+  @descendants = $h->descendants();
+
+In list context, returns the list of all C<$h>'s descendant elements,
 listed in pre-order (i.e., an element appears before its
 content-elements).  Text segments DO NOT appear in the list.
 In scalar context, returns a count of all such elements.
 
-=head2 $h->descendents()
+=method-second descendents
 
-This is just an alias to the C<descendants> method.
+This is just an alias to the C<descendants> method, for people who
+can't spell.
 
 =cut
 
@@ -2742,17 +2997,20 @@ sub descendants {
     }
 }
 
-=head2 $h->find_by_tag_name('tag', ...)
+=method-second find_by_tag_name
 
-In list context, returns a list of elements at or under $h that have
+  @elements = $h->find_by_tag_name('tag', ...);
+  $first_match = $h->find_by_tag_name('tag', ...);
+
+In list context, returns a list of elements at or under C<$h> that have
 any of the specified tag names.  In scalar context, returns the first
 (in pre-order traversal of the tree) such element found, or undef if
 none.
 
-=head2 $h->find('tag', ...)
+=method-second find
 
 This is just an alias to C<find_by_tag_name>.  (There was once
-going to be a whole find_* family of methods, but then look_down
+going to be a whole find_* family of methods, but then C<look_down>
 filled that niche, so there turned out not to be much reason for the
 verboseness of the name "find_by_tag_name".)
 
@@ -2788,9 +3046,12 @@ sub find_by_tag_name {
     return;
 }
 
-=head2 $h->find_by_attribute('attribute', 'value')
+=method-second find_by_attribute
 
-In a list context, returns a list of elements at or under $h that have
+  @elements = $h->find_by_attribute('attribute', 'value');
+  $first_match = $h->find_by_attribute('attribute', 'value');
+
+In a list context, returns a list of elements at or under C<$h> that have
 the specified attribute, and have the given value for that attribute.
 In a scalar context, returns the first (in pre-order traversal of the
 tree) such element found, or undef if none.
@@ -2832,16 +3093,18 @@ sub find_by_attribute {
         return @matching;
     }
     else {
-        return unless @matching;
         return $matching[0];
     }
 }
 
 #--------------------------------------------------------------------------
 
-=head2 $h->look_down( ...criteria... )
+=method-second look_down
 
-This starts at $h and looks thru its element descendants (in
+  @elements = $h->look_down( ...criteria... );
+  $first_match = $h->look_down( ...criteria... );
+
+This starts at C<$h> and looks thru its element descendants (in
 pre-order), looking for elements matching the criteria you specify.
 In list context, returns all elements that match all the given
 criteria; in scalar context, returns the first such element (or undef,
@@ -2867,12 +3130,11 @@ attribute matches the specified Regexp object.
 This means you're looking for elements where coderef->(each_element)
 returns true.  Example:
 
-  my @wide_pix_images
-    = $h->look_down(
-                    "_tag", "img",
-                    "alt", "pix!",
-                    sub { $_[0]->attr('width') > 350 }
-                   );
+  my @wide_pix_images = $h->look_down(
+    _tag => "img",
+    alt  => "pix!",
+    sub { $_[0]->attr('width') > 350 }
+  );
 
 =back
 
@@ -3015,19 +3277,23 @@ Node:
     return;
 }
 
-=head2 $h->look_up( ...criteria... )
+=method-second look_up
 
-This is identical to $h->look_down, except that whereas $h->look_down
+  @elements = $h->look_up( ...criteria... );
+  $first_match = $h->look_up( ...criteria... );
+
+This is identical to C<< $h->look_down >>, except that whereas
+C<< $h->look_down >>
 basically scans over the list:
 
    ($h, $h->descendants)
 
-$h->look_up instead scans over the list
+C<< $h->look_up >> instead scans over the list
 
    ($h, $h->lineage)
 
-So, for example, this returns all ancestors of $h (possibly including
-$h itself) that are "td" elements with an "align" attribute with a
+So, for example, this returns all ancestors of C<$h> (possibly including
+C<$h> itself) that are C<< <td> >> elements with an "align" attribute with a
 value of "right" (or "RIGHT", etc.):
 
    $h->look_up("_tag", "td", "align", "right");
@@ -3108,16 +3374,21 @@ Node:
 
 #--------------------------------------------------------------------------
 
-=head2 $h->traverse(...options...)
+=method-second traverse
+
+  $h->traverse(...options...)
 
 Lengthy discussion of HTML::Element's unnecessary and confusing
 C<traverse> method has been moved to a separate file:
 L<HTML::Element::traverse>
 
-=head2 $h->attr_get_i('attribute')
+=method-second attr_get_i
+
+  @values = $h->attr_get_i('attribute');
+  $first_value = $h->attr_get_i('attribute');
 
 In list context, returns a list consisting of the values of the given
-attribute for $self and for all its ancestors starting from $self and
+attribute for C<$h> and for all its ancestors starting from C<$h> and
 working its way up.  Nodes with no such attribute are skipped.
 ("attr_get_i" stands for "attribute get, with inheritance".)
 In scalar context, returns the first such value, or undef if none.
@@ -3135,16 +3406,17 @@ Consider a document consisting of:
      </body>
    </html>
 
-If $h is the "cite" element, $h->attr_get_i("lang") in list context
-will return the list ('es-MX', 'i-klingon').  In scalar context, it
-will return the value 'es-MX'.
+If C<$h> is the C<< <cite> >> element, C<< $h->attr_get_i("lang") >>
+in list context will return the list C<('es-MX', 'i-klingon')>.
+In scalar context, it will return the value C<'es-MX'>.
 
 If you call with multiple attribute names...
 
-=head2 $h->attr_get_i('a1', 'a2', 'a3')
+  @values = $h->attr_get_i('a1', 'a2', 'a3');
+  $first_value = $h->attr_get_i('a1', 'a2', 'a3');
 
 ...in list context, this will return a list consisting of
-the values of these attributes which exist in $self and its ancestors.
+the values of these attributes which exist in C<$h> and its ancestors.
 In scalar context, this returns the first value (i.e., the value of
 the first existing attribute from the first element that has
 any of the attributes listed).  So, in the above example,
@@ -3215,7 +3487,9 @@ sub attr_get_i {
     }
 }
 
-=head2 $h->tagname_map()
+=method-second tagname_map
+
+  $hash_ref = $h->tagname_map();
 
 Scans across C<$h> and all its descendants, and makes a hash (a
 reference to which is returned) where each entry consists of a key
@@ -3224,14 +3498,14 @@ elements that have that tag name.  I.e., this method returns:
 
    {
      # Across $h and all descendants...
-     'a'   => [ ...list of all 'a'   elements... ],
-     'em'  => [ ...list of all 'em'  elements... ],
-     'img' => [ ...list of all 'img' elements... ],
+     'a'   => [ ...list of all <a>   elements... ],
+     'em'  => [ ...list of all <em>  elements... ],
+     'img' => [ ...list of all <img> elements... ],
    }
 
 (There are entries in the hash for only those tagnames that occur
-at/under C<$h> -- so if there's no "img" elements, there'll be no
-"img" entry in the hashr(ref) returned.)
+at/under C<$h> -- so if there's no C<< <img> >> elements, there'll be no
+"img" entry in the returned hashref.)
 
 Example usage:
 
@@ -3261,11 +3535,14 @@ sub tagname_map {
     return \%map;
 }
 
-=head2 $h->extract_links() or $h->extract_links(@wantedTypes)
+=method-second extract_links
+
+  $links_array_ref = $h->extract_links();
+  $links_array_ref = $h->extract_links(@wantedTypes);
 
 Returns links found by traversing the element and all of its children
-and looking for attributes (like "href" in an "a" element, or "src" in
-an "img" element) whose values represent links.  The return value is a
+and looking for attributes (like "href" in an C<< <a> >> element, or "src" in
+an C<< <img> >> element) whose values represent links.  The return value is a
 I<reference> to an array.  Each element of the array is reference to
 an array with I<four> items: the link-value, the element that has the
 attribute with that link-value, and the name of that attribute, and
@@ -3278,7 +3555,7 @@ You might specify that you want to extract links from just some kinds
 of elements (instead of the default, which is to extract links from
 I<all> the kinds of elements known to have attributes whose values
 represent links).  For instance, if you want to extract links from
-only "a" and "img" elements, you could code it like this:
+only C<< <a> >> and C<< <img> >> elements, you could code it like this:
 
   for (@{  $e->extract_links('a', 'img')  }) {
       my($link, $element, $attr, $tag) = @$_;
@@ -3334,14 +3611,16 @@ sub extract_links {
     \@links;
 }
 
-=head2 $h->simplify_pres
+=method-second simplify_pres
 
-In text bits under PRE elements that are at/under $h, this routine
+  $h->simplify_pres();
+
+In text bits under PRE elements that are at/under C<$h>, this routine
 nativizes all newlines, and expands all tabs.
 
 That is, if you read a file with lines delimited by C<\cm\cj>'s, the
 text under PRE areas will have C<\cm\cj>'s instead of C<\n>'s. Calling
-$h->nativize_pre_newlines on such a tree will turn C<\cm\cj>'s into
+C<< $h->simplify_pres >> on such a tree will turn C<\cm\cj>'s into
 C<\n>'s.
 
 Tabs are expanded to however many spaces it takes to get
@@ -3388,18 +3667,19 @@ sub simplify_pres {
 
     undef $sub;
     return;
-
 }
 
-=head2 $h->same_as($i)
+=method-second same_as
 
-Returns true if $h and $i are both elements representing the same tree
+  $equal = $h->same_as($i)
+
+Returns true if C<$h> and C<$i> are both elements representing the same tree
 of elements, each with the same tag name, with the same explicit
 attributes (i.e., not counting attributes whose names start with "_"),
 and with the same content (textual, comments, etc.).
 
 Sameness of descendant elements is tested, recursively, with
-C<$child1-E<gt>same_as($child_2)>, and sameness of text segments is tested
+C<< $child1->same_as($child_2) >>, and sameness of text segments is tested
 with C<$segment1 eq $segment2>.
 
 =cut
@@ -3486,10 +3766,13 @@ sub same_as {
     return 1;    # passed all the tests!
 }
 
-=head2 $h = HTML::Element->new_from_lol(ARRAYREF)
+=method-second new_from_lol
+
+  $h = HTML::Element->new_from_lol($array_ref);
+  @elements = HTML::Element->new_from_lol($array_ref, ...);
 
 Resursively constructs a tree of nodes, based on the (non-cyclic)
-data structure represented by ARRAYREF, where that is a reference
+data structure represented by each C<$array_ref>, where that is a reference
 to an array of arrays (of arrays (of arrays (etc.))).
 
 In each arrayref in that structure, different kinds of values are
@@ -3583,10 +3866,9 @@ You can even do fancy things with C<map>:
     ],
   );
 
-=head2 @elements = HTML::Element->new_from_lol(ARRAYREFS)
-
-Constructs I<several> elements, by calling
-new_from_lol for every arrayref in the ARRAYREFS list.
+In scalar context, you must supply exactly one arrayref.  In list
+context, you can pass a list of arrayrefs, and L<new_from_lol> will
+return a list of elements, one for each arrayref.
 
   @elements = HTML::Element->new_from_lol(
     ['hr'],
@@ -3680,7 +3962,7 @@ sub new_from_lol {
             if (@children) {
                 $node->{'_content'} = \@children;
                 foreach my $c (@children) {
-                    $c->{'_parent'} = $node
+                    _weaken($c->{'_parent'} = $node)
                         if ref $c;
                 }
             }
@@ -3688,7 +3970,8 @@ sub new_from_lol {
         else {                            # Do it the clean way...
                                           #print "Done neatly\n";
             while (@attributes) { $node->attr( splice @attributes, 0, 2 ) }
-            $node->push_content( map { $_->{'_parent'} = $node if ref $_; $_ }
+            $node->push_content(
+                  map { _weaken($_->{'_parent'} = $node) if ref $_; $_ }
                     @children )
                 if @children;
         }
@@ -3700,54 +3983,58 @@ sub new_from_lol {
 
     if (wantarray) {
         my (@nodes) = map { ; ( ref($_) eq 'ARRAY' ) ? $sub->($_) : $_ } @_;
-
         # Let text bits pass thru, I guess.  This makes this act more like
         #  unshift_content et al.  Undocumented.
-        undef $sub;
 
+        undef $sub;
         # so it won't be in its own frame, so its refcount can hit 0
+
         return @nodes;
     }
     else {
         Carp::croak "new_from_lol in scalar context needs exactly one lol"
             unless @_ == 1;
         return $_[0] unless ref( $_[0] ) eq 'ARRAY';
-
         # used to be a fatal error.  still undocumented tho.
+
         $node = $sub->( $_[0] );
         undef $sub;
-
         # so it won't be in its own frame, so its refcount can hit 0
+
         return $node;
     }
 }
 
-=head2 $h->objectify_text()
+=method-second objectify_text
 
-This turns any text nodes under $h from mere text segments (strings)
+  $h->objectify_text();
+
+This turns any text nodes under C<$h> from mere text segments (strings)
 into real objects, pseudo-elements with a tag-name of "~text", and the
 actual text content in an attribute called "text".  (For a discussion
-of pseudo-elements, see the "tag" method, far above.)  This method is
+of pseudo-elements, see the L</"tag"> method, far above.)  This method is
 provided because, for some purposes, it is convenient or necessary to
 be able, for a given text node, to ask what element is its parent; and
 clearly this is not possible if a node is just a text string.
 
 Note that these "~text" objects are not recognized as text nodes by
-methods like as_text.  Presumably you will want to call
-$h->objectify_text, perform whatever task that you needed that for,
-and then call $h->deobjectify_text before calling anything like
-$h->as_text.
+methods like L</as_text>.  Presumably you will want to call
+C<< $h->objectify_text >>, perform whatever task that you needed that for,
+and then call C<< $h->deobjectify_text >> before calling anything like
+C<< $h->as_text >>.
 
-=head2 $h->deobjectify_text()
+=method-second deobjectify_text
 
-This undoes the effect of $h->objectify_text.  That is, it takes any
-"~text" pseudo-elements in the tree at/under $h, and deletes each one,
-replacing each with the content of its "text" attribute. 
+  $h->deobjectify_text();
 
-Note that if $h itself is a "~text" pseudo-element, it will be
+This undoes the effect of C<< $h->objectify_text >>.  That is, it takes any
+"~text" pseudo-elements in the tree at/under C<$h>, and deletes each one,
+replacing each with the content of its "text" attribute.
+
+Note that if C<$h> itself is a "~text" pseudo-element, it will be
 destroyed -- a condition you may need to treat specially in your
-calling code (since it means you can't very well do anything with $h
-after that).  So that you can detect that condition, if $h is itself a
+calling code (since it means you can't very well do anything with C<$h>
+after that).  So that you can detect that condition, if C<$h> is itself a
 "~text" pseudo-element, then this method returns the value of the
 "text" attribute, which should be a defined value; in all other cases,
 it returns undef.
@@ -3825,12 +4112,14 @@ sub deobjectify_text {
         }
     }
 
-    return;
+    return undef;
 }
 
-=head2 $h->number_lists()
+=method-second number_lists
 
-For every UL, OL, DIR, and MENU element at/under $h, this sets a
+  $h->number_lists();
+
+For every UL, OL, DIR, and MENU element at/under C<$h>, this sets a
 "_bullet" attribute for every child LI element.  For LI children of an
 OL, the "_bullet" attribute's value will be something like "4.", "d.",
 "D.", "IV.", or "iv.", depending on the OL element's "type" attribute.
@@ -3978,7 +4267,9 @@ sub number_lists {
     return;
 }
 
-=head2 $h->has_insane_linkage
+=method-second has_insane_linkage
+
+  $h->has_insane_linkage
 
 This method is for testing whether this element or the elements
 under it have linkage attributes (_parent and _content) whose values
@@ -4002,8 +4293,8 @@ impossible for you to produce an insane tree just thru reasonable
 use of normal documented structure-modifying methods.  But if you're
 constructing your own trees, and your program is going into infinite
 loops as during calls to traverse() or any of the secondary
-structural methods, as part of debugging, consider calling is_insane
-on the tree.
+structural methods, as part of debugging, consider calling
+C<has_insane_linkage> on the tree.
 
 =cut
 
@@ -4112,7 +4403,9 @@ sub _valid_name {
     return (1);
 }
 
-=head2 $h->element_class
+=method-second element_class
+
+  $classname = $h->element_class();
 
 This method returns the class which will be used for new elements.  It
 defaults to HTML::Element, but can be overridden by subclassing or esoteric
@@ -4130,8 +4423,9 @@ sub element_class {
 =head1 BUGS
 
 * If you want to free the memory associated with a tree built of
-HTML::Element nodes, then you will have to delete it explicitly.
-See the $h->delete method, above.
+HTML::Element nodes, and you have disabled weak references, then you
+will have to delete it explicitly using the L</delete> method.
+See L</"Weak References">.
 
 * There's almost nothing to stop you from making a "tree" with
 cyclicities (loops) in it, which could, for example, make the
@@ -4162,7 +4456,7 @@ otherwise false, or a reference to an (unblessed) array.  The array
 may be empty; but if it has items, they must ALL be either mere
 strings (text segments), or elements.
 
-* The value of an element's _tag attribute should, at least, be a 
+* The value of an element's _tag attribute should, at least, be a
 string of printable characters.
 
 Moreover, bear these rules in mind:
@@ -4176,33 +4470,10 @@ calls the superclass method is not so bad, though.)
 
 =head1 SEE ALSO
 
-L<HTML::Tree>; L<HTML::TreeBuilder>; L<HTML::AsSubs>; L<HTML::Tagset>; 
+L<HTML::Tree>; L<HTML::TreeBuilder>; L<HTML::AsSubs>; L<HTML::Tagset>;
 and, for the morbidly curious, L<HTML::Element::traverse>.
 
-=head1 COPYRIGHT
-
-Copyright 1995-1998 Gisle Aas, 1999-2004 Sean M. Burke, 2005 Andy Lester,
-2006 Pete Krawczyk, 2010 Jeff Fearn.
-
-This library is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself.
-
-This program is distributed in the hope that it will be useful, but
-without any warranty; without even the implied warranty of
-merchantability or fitness for a particular purpose.
-
-=head1 AUTHOR
-
-Current Author:
-	Jeff Fearn C<< <jfearn@cpan.org> >>.
-
-Original HTML-Tree author:
-	Gisle Aas.
-
-Former Authors:
-	Sean M. Burke.
-	Andy Lester.
-	Pete Krawczyk C<< <petek@cpan.org> >>.
+=head1 ACKNOWLEDGEMENTS
 
 Thanks to Mark-Jason Dominus for a POD suggestion.
 

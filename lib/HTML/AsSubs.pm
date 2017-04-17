@@ -1,8 +1,6 @@
 package HTML::AsSubs;
 
-=head1 NAME
-
-HTML::AsSubs - functions that construct a HTML syntax tree
+# ABSTRACT: functions that construct a HTML syntax tree
 
 =head1 SYNOPSIS
 
@@ -72,13 +70,13 @@ L<HTML::Element>, L<XML::Generator>
 
 use warnings;
 use strict;
-use vars qw(@ISA $VERSION @EXPORT);
+use vars qw(@ISA @EXPORT);
+
+# VERSION from OurPkgVersion
 
 require HTML::Element;
 require Exporter;
 @ISA = qw(Exporter);
-
-$VERSION = 4.2;
 
 # Problem: exports so damned much.  Has no concept of "export only HTML4
 #  elements".  TODO:?? make something that make functions that just
