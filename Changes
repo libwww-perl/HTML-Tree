@@ -5,6 +5,7 @@ Changelog for HTML-Tree
 
     [FIXES]
     * Remove Distzilla to fix RT #120521
+    * Add POD to htmltree RT #116367
 
 5.03     2012-09-22
    Release by Christopher J. Madsen
