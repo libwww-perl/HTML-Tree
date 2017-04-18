@@ -2058,7 +2058,7 @@ sub as_XML {
                 }
             }
             else {        # it's just text
-                _xml_escape($node);
+                _xml_escape_text($node);
                 push( @xml, $node );
             }
             1;            # keep traversing
@@ -2068,10 +2068,10 @@ sub as_XML {
     join( '', @xml, "\n" );
 }
 
-sub _xml_escape {
+sub _xml_escape_text {
 
 # DESTRUCTIVE (a.k.a. "in-place")
-# Five required escapes: http://www.w3.org/TR/2006/REC-xml11-20060816/#syntax
+# Three escapes always required in character data: http://www.w3.org/TR/2006/REC-xml11-20060816/#syntax
 # We allow & if it's part of a valid escape already: http://www.w3.org/TR/2006/REC-xml11-20060816/#sec-references
     foreach my $x (@_) {
 
@@ -2091,6 +2091,20 @@ sub _xml_escape {
         # simple character escapes
         $x =~ s/</&lt;/g;
         $x =~ s/>/&gt;/g;
+    }
+    return;
+}
+
+sub _xml_escape_attr {
+
+# DESTRUCTIVE (a.k.a. "in-place")
+# In addition to other escapes, also escape apostrophe and double-quote
+# characters that must be escaped in attribute values.
+
+# http://www.w3.org/TR/2006/REC-xml11-20060816/#syntax
+    _xml_escape_text(@_);
+
+    foreach my $x (@_) {
         $x =~ s/"/&quot;/g;
         $x =~ s/'/&apos;/g;
     }
@@ -2336,7 +2350,7 @@ sub starttag_XML {
         # Hm -- what to do if val is undef?
         # I suppose that shouldn't ever happen.
         next if !defined( $val = $self->{$_} );    # or ref $val;
-        _xml_escape($val);
+        _xml_escape_attr($val);
         $tag .= qq{ $_="$val"};
     }
     @_ == 3 ? "$tag />" : "$tag>";
