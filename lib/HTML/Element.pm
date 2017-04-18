@@ -1263,7 +1263,8 @@ sub delete_content {
                 #  will keep calls to detach() from trying to uselessly filter
                 #  the list (as they won't be able to see it once it's been
                 #  deleted)
-                || return ( $_[0] )    # in case of no content
+                || return ( $_[0] )
+                    # in case of no content
         },
         0
 
@@ -2095,7 +2096,7 @@ sub _xml_escape_text {
     return;
 }
 
-sub _xml_escape_attr {
+sub _xml_escape {
 
 # DESTRUCTIVE (a.k.a. "in-place")
 # In addition to other escapes, also escape apostrophe and double-quote
@@ -2350,7 +2351,7 @@ sub starttag_XML {
         # Hm -- what to do if val is undef?
         # I suppose that shouldn't ever happen.
         next if !defined( $val = $self->{$_} );    # or ref $val;
-        _xml_escape_attr($val);
+        _xml_escape($val);
         $tag .= qq{ $_="$val"};
     }
     @_ == 3 ? "$tag />" : "$tag>";

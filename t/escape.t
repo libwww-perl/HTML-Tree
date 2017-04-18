@@ -61,24 +61,24 @@ $HTML::Element::encoded_content = 1;
 
 foreach my $orig ( keys %translations ) {
     my $new = $orig;
-    HTML::Element::_xml_escape_attr($new);
+    HTML::Element::_xml_escape($new);
     is( $new, $translations{$orig}, "Properly escaped: $orig" );
 }
 
 # test that multiple runs don't change the value
 my $test_orig = '&amp;foo; &bar;';
 my $test_str  = $test_orig;
-HTML::Element::_xml_escape_attr($test_str);
+HTML::Element::_xml_escape($test_str);
 is( $test_str, $test_orig, "Multiple runs 1" );
-HTML::Element::_xml_escape_attr($test_str);
+HTML::Element::_xml_escape($test_str);
 is( $test_str, $test_orig, "Multiple runs 2" );
-HTML::Element::_xml_escape_attr($test_str);
+HTML::Element::_xml_escape($test_str);
 is( $test_str, $test_orig, "Multiple runs 3" );
 
 # test default path, always encode '&'
 $HTML::Element::encoded_content = 0;
 $test_str  = $test_orig;
 my $test_expected = '&amp;amp;foo; &amp;bar;';
-HTML::Element::_xml_escape_attr($test_str);
+HTML::Element::_xml_escape($test_str);
 is( $test_str, $test_expected, "Default encode" );
 
