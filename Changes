@@ -8,6 +8,8 @@ Changelog for HTML-Tree
     * Add POD to htmltree RT #116367
     * Speed up is_inside method RT #113415
       - From Todd Rinaldo https://github.com/madsen/HTML-Tree/pull/5
+    * Fix extra spaces being added to comments RT #94311
+      - From Tomaz Solc
 
 5.03     2012-09-22
    Release by Christopher J. Madsen
