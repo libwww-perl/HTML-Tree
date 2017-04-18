@@ -1,6 +1,8 @@
 Changelog for HTML-Tree
 
 {{$NEXT}}
+    [FIXES]
+    * Add POD to htmltree RT #116367
 
 5.909    2014-05-24  Trial Release by Christopher J. Madsen
 
