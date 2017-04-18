@@ -1,11 +1,19 @@
 package HTML::Element;
 
-# ABSTRACT: Class for objects that represent HTML elements
+=head1 NAME
+
+HTML::Element - Class for objects that represent HTML elements
+
+=head1 VERSION
+
+Version 5.04
+
+=cut
 
 use strict;
 use warnings;
 
-# VERSION from OurPkgVersion
+our $VERSION = '5.04';
 
 use Carp           ();
 use HTML::Entities ();
@@ -22,9 +30,9 @@ use vars qw($html_uc $Debug $ID_COUNTER $VERSION %list_type_to_sub);
 # Set up support for weak references, if possible:
 my $using_weaken;
 
-#=head1 CLASS METHODS
+=head1 CLASS METHODS
 
-=method-class Use_Weak_Refs
+=head2 Use_Weak_Refs
 
   $enabled = HTML::Element->Use_Weak_Refs;
   HTML::Element->Use_Weak_Refs( $enabled );
@@ -238,9 +246,9 @@ S<C<use HTML::TreeBuilder: 5 -weak;>>.
 
 $Debug = 0 unless defined $Debug;
 
-#=head1 SUBROUTINES
+=head1 SUBROUTINES
 
-=sub Version
+=head2 Version
 
 This subroutine is deprecated.  Please use the standard VERSION method
 (e.g. C<< HTML::Element->VERSION >>) instead.
@@ -268,7 +276,7 @@ my ( $ABORT, $PRUNE, $PRUNE_SOFTLY, $OK, $PRUNE_UP )
     ABORT  PRUNE   PRUNE_SOFTLY   OK   PRUNE_UP
 );
 
-=sub ABORT OK PRUNE PRUNE_SOFTLY PRUNE_UP
+=head2 ABORT OK PRUNE PRUNE_SOFTLY PRUNE_UP
 
 Constants for signalling back to the traverser
 
@@ -313,9 +321,9 @@ my $NAME_CHAR
 
 #==========================================================================
 
-#=head1 BASIC METHODS
+=head1 BASIC METHODS
 
-=method-basic new
+=head2 new
 
   $h = HTML::Element->new('tag', 'attrname' => 'value', ... );
 
@@ -371,7 +379,7 @@ sub new {
     return $self;
 }
 
-=method-basic attr
+=head2 attr
 
   $value = $h->attr('attr');
   $old_value = $h->attr('attr', $new_value);
@@ -410,7 +418,7 @@ sub attr {
     }
 }
 
-=method-basic tag
+=head2 tag
 
   $tagname = $h->tag();
   $h->tag('tagname');
@@ -520,7 +528,7 @@ sub tag {
     }
 }
 
-=method-basic parent
+=head2 parent
 
   $parent = $h->parent();
   $h->parent($new_parent);
@@ -549,7 +557,7 @@ sub parent {
     }
 }
 
-=method-basic content_list
+=head2 content_list
 
   @content = $h->content_list();
   $num_children = $h->content_list();
@@ -569,7 +577,7 @@ sub content_list {
         : scalar @{ shift->{'_content'} || return 0 };
 }
 
-=method-basic content
+=head2 content
 
   $content_array_ref = $h->content(); # may return undef
 
@@ -605,7 +613,7 @@ sub content {
     return shift->{'_content'};
 }
 
-=method-basic content_array_ref
+=head2 content_array_ref
 
   $content_array_ref = $h->content_array_ref(); # never undef
 
@@ -622,7 +630,7 @@ sub content_array_ref {
     return shift->{'_content'} ||= [];
 }
 
-=method-basic content_refs_list
+=head2 content_refs_list
 
   @content_refs = $h->content_refs_list;
 
@@ -656,7 +664,7 @@ sub content_refs_list {
     return \( @{ shift->{'_content'} || return () } );
 }
 
-=method-basic implicit
+=head2 implicit
 
   $is_implicit = $h->implicit();
   $h->implicit($make_implicit);
@@ -673,7 +681,7 @@ sub implicit {
     return shift->attr( '_implicit', @_ );
 }
 
-=method-basic pos
+=head2 pos
 
   $pos = $h->pos();
   $h->pos($element);
@@ -713,7 +721,7 @@ sub pos {
     return $self;
 }
 
-=method-basic all_attr
+=head2 all_attr
 
   %attr = $h->all_attr();
 
@@ -728,7 +736,7 @@ Example output of C<< $h->all_attr() >> :
 C<'_parent', >I<[object_value]>C< , '_tag', 'em', 'lang', 'en-US',
 '_content', >I<[array-ref value]>.
 
-=method-basic all_attr_names
+=head2 all_attr_names
 
   @names = $h->all_attr_names();
   $num_attrs = $h->all_attr_names();
@@ -754,13 +762,13 @@ sub all_attr_names {
     return keys %{ $_[0] };
 }
 
-=method-basic all_external_attr
+=head2 all_external_attr
 
   %attr = $h->all_external_attr();
 
 Like C<all_attr>, except that internal attributes are not present.
 
-=method-basic all_external_attr_names
+=head2 all_external_attr_names
 
   @names = $h->all_external_attr_names();
   $num_attrs = $h->all_external_attr_names();
@@ -782,7 +790,7 @@ sub all_external_attr_names {
     return grep !( length($_) && substr( $_, 0, 1 ) eq '_' ), keys %{ $_[0] };
 }
 
-=method-basic id
+=head2 id
 
   $id = $h->id();
   $h->id($string);
@@ -813,7 +821,7 @@ sub id {
     }
 }
 
-=method-basic idf
+=head2 idf
 
   $id = $h->idf();
   $h->idf($string);
@@ -863,7 +871,7 @@ sub idf {
 These methods are provided for modifying the content of trees
 by adding or changing nodes as parents or children of other nodes.
 
-=method-struct push_content
+=head2 push_content
 
   $h->push_content($element_or_text, ...);
 
@@ -959,7 +967,7 @@ sub push_content {
     return $self;
 }
 
-=method-struct unshift_content
+=head2 unshift_content
 
   $h->unshift_content($element_or_text, ...)
 
@@ -1010,7 +1018,7 @@ sub unshift_content {
 
 # Cf.  splice ARRAY,OFFSET,LENGTH,LIST
 
-=method-struct splice_content
+=head2 splice_content
 
   @removed = $h->splice_content($offset, $length,
                                 $element_or_text, ...);
@@ -1062,7 +1070,7 @@ sub splice_content {
     return @out;
 }
 
-=method-struct detach
+=head2 detach
 
   $old_parent = $h->detach();
 
@@ -1086,7 +1094,7 @@ sub detach {
     return $parent;
 }
 
-=method-struct detach_content
+=head2 detach_content
 
   @old_content = $h->detach_content();
 
@@ -1104,7 +1112,7 @@ sub detach_content {
     return splice @$c;
 }
 
-=method-struct replace_with
+=head2 replace_with
 
   $h->replace_with( $element_or_text, ... )
 
@@ -1165,7 +1173,7 @@ sub replace_with {
     return $self;
 }
 
-=method-struct preinsert
+=head2 preinsert
 
   $h->preinsert($element_or_text...);
 
@@ -1182,7 +1190,7 @@ sub preinsert {
     return $self->replace_with( @_, $self );
 }
 
-=method-struct postinsert
+=head2 postinsert
 
   $h->postinsert($element_or_text...)
 
@@ -1199,7 +1207,7 @@ sub postinsert {
     return $self->replace_with( $self, @_ );
 }
 
-=method-struct replace_with_content
+=head2 replace_with_content
 
   $h->replace_with_content();
 
@@ -1232,7 +1240,7 @@ sub replace_with_content {
     return $self;                  # note: doesn't destroy it.
 }
 
-=method-struct delete_content
+=head2 delete_content
 
   $h->delete_content();
   $h->destroy_content(); # alias
@@ -1268,7 +1276,7 @@ sub delete_content {
     $_[0];
 }
 
-=method-struct delete
+=head2 delete
 
   $h->delete();
   $h->destroy(); # alias
@@ -1282,11 +1290,11 @@ you were finished with the tree, or your program would leak memory.
 This is no longer necessary if weak references are enabled, see
 L</"Weak References">.
 
-=method-struct destroy
+=head2 destroy
 
 An alias for L</delete>.
 
-=method-struct destroy_content
+=head2 destroy_content
 
 An alias for L</delete_content>.
 
@@ -1309,7 +1317,7 @@ sub delete {
     return;
 }
 
-=method-struct clone
+=head2 clone
 
   $copy = $h->clone();
 
@@ -1352,7 +1360,7 @@ sub clone {
     return $new;
 }
 
-=method-struct clone_list
+=head2 clone_list
 
   @copies = HTML::Element->clone_list(...nodes...);
 
@@ -1380,7 +1388,7 @@ sub clone_list {
     } @_;
 }
 
-=method-struct normalize_content
+=head2 normalize_content
 
   $h->normalize_content
 
@@ -1449,7 +1457,7 @@ sub normalize_content {
     return;
 }
 
-=method-struct delete_ignorable_whitespace
+=head2 delete_ignorable_whitespace
 
   $h->delete_ignorable_whitespace()
 
@@ -1565,7 +1573,7 @@ sub delete_ignorable_whitespace {
     return;
 }
 
-=method-struct insert_element
+=head2 insert_element
 
   $h->insert_element($element, $implicit);
 
@@ -1639,9 +1647,9 @@ sub _fold_case_NOT {
 
 #==========================================================================
 
-#=head1 DUMPING METHODS
+=head1 DUMPING METHODS
 
-=method-dump dump
+=head2 dump
 
   $h->dump()
   $h->dump(*FH)  ; # or *FH{IO} or $fh_obj
@@ -1683,7 +1691,7 @@ sub dump {
     }
 }
 
-=method-dump as_HTML
+=head2 as_HTML
 
   $s = $h->as_HTML();
   $s = $h->as_HTML($entities);
@@ -1916,7 +1924,7 @@ sub as_HTML {
     return join( '', @html );
 }
 
-=method-dump as_text
+=head2 as_text
 
   $s = $h->as_text();
   $s = $h->as_text(skip_dels => 1);
@@ -1938,10 +1946,8 @@ Text under C<< <script> >> or C<< <style> >> elements is never
 included in what's returned.  If C<skip_dels> is true, then text
 content under C<< <del> >> nodes is not included in what's returned.
 
-=for Pod::Coverage
-as_text_trimmed
+=head2 as_trimmed_text as_text_trimmed
 
-=method-dump as_trimmed_text
 
   $s = $h->as_trimmed_text(...);
   $s = $h->as_trimmed_text(extra_chars => '\xA0'); # remove &nbsp;
@@ -1999,7 +2005,7 @@ sub as_trimmed_text {
 
 sub as_text_trimmed { shift->as_trimmed_text(@_) }   # alias, because I forget
 
-=method-dump as_XML
+=head2 as_XML
 
   $s = $h->as_XML()
 
@@ -2091,7 +2097,7 @@ sub _xml_escape {
     return;
 }
 
-=method-dump as_Lisp_form
+=head2 as_Lisp_form
 
   $s = $h->as_Lisp_form();
 
@@ -2183,7 +2189,7 @@ sub as_Lisp_form {
     return join '', @out;
 }
 
-=method-dump format
+=head2 format
 
   $s = $h->format; # use HTML::FormatText
   $s = $h->format($formatter);
@@ -2204,7 +2210,7 @@ sub format {
     $formatter->format($self);
 }
 
-=method-dump starttag
+=head2 starttag
 
   $start = $h->starttag();
   $start = $h->starttag($entities);
@@ -2290,7 +2296,7 @@ sub starttag {
     }
 }
 
-=method-dump starttag_XML
+=head2 starttag_XML
 
   $start = $h->starttag_XML();
 
@@ -2336,14 +2342,14 @@ sub starttag_XML {
     @_ == 3 ? "$tag />" : "$tag>";
 }
 
-=method-dump endtag
+=head2 endtag
 
   $end = $h->endtag();
 
 Returns a string representing the complete end tag for this element.
 I.e., "</", tag name, and ">".
 
-=method-dump endtag_XML
+=head2 endtag_XML
 
   $end = $h->endtag_XML();
 
@@ -2606,7 +2612,7 @@ These methods all involve some structural aspect of the tree;
 either they report some aspect of the tree's structure, or they involve
 traversal down the tree, or walking up the tree.
 
-=method-second is_inside
+=head2 is_inside
 
   $inside = $h->is_inside('tag', $element, ...);
 
@@ -2637,7 +2643,7 @@ sub is_inside {
     0;
 }
 
-=method-second is_empty
+=head2 is_empty
 
   $empty = $h->is_empty();
 
@@ -2663,7 +2669,7 @@ sub is_empty {
     !$self->{'_content'} || !@{ $self->{'_content'} };
 }
 
-=method-second pindex
+=head2 pindex
 
   $index = $h->pindex();
 
@@ -2692,7 +2698,7 @@ sub pindex {
 
 #--------------------------------------------------------------------------
 
-=method-second left
+=head2 left
 
   $element = $h->left();
   @elements = $h->left();
@@ -2736,7 +2742,7 @@ sub left {
     return;
 }
 
-=method-second right
+=head2 right
 
   $element = $h->right();
   @elements = $h->right();
@@ -2787,7 +2793,7 @@ sub right {
 
 #--------------------------------------------------------------------------
 
-=method-second address
+=head2 address
 
   $address = $h->address();
   $element_or_text = $h->address($address);
@@ -2862,7 +2868,7 @@ sub address {
     }
 }
 
-=method-second depth
+=head2 depth
 
   $depth = $h->depth();
 
@@ -2881,7 +2887,7 @@ sub depth {
     return $depth;
 }
 
-=method-second root
+=head2 root
 
   $root = $h->root();
 
@@ -2900,7 +2906,7 @@ sub root {
     return $root;
 }
 
-=method-second lineage
+=head2 lineage
 
   @lineage = $h->lineage();
 
@@ -2922,7 +2928,7 @@ sub lineage {
     return @lineage;
 }
 
-=method-second lineage_tag_names
+=head2 lineage_tag_names
 
   @names = $h->lineage_tag_names();
 
@@ -2946,7 +2952,7 @@ sub lineage_tag_names {
     return @lineage_names;
 }
 
-=method-second descendants
+=head2 descendants
 
   @descendants = $h->descendants();
 
@@ -2955,7 +2961,7 @@ listed in pre-order (i.e., an element appears before its
 content-elements).  Text segments DO NOT appear in the list.
 In scalar context, returns a count of all such elements.
 
-=method-second descendents
+=head2 descendents
 
 This is just an alias to the C<descendants> method, for people who
 can't spell.
@@ -2997,7 +3003,7 @@ sub descendants {
     }
 }
 
-=method-second find_by_tag_name
+=head2 find_by_tag_name
 
   @elements = $h->find_by_tag_name('tag', ...);
   $first_match = $h->find_by_tag_name('tag', ...);
@@ -3007,7 +3013,7 @@ any of the specified tag names.  In scalar context, returns the first
 (in pre-order traversal of the tree) such element found, or undef if
 none.
 
-=method-second find
+=head2 find
 
 This is just an alias to C<find_by_tag_name>.  (There was once
 going to be a whole find_* family of methods, but then C<look_down>
@@ -3046,7 +3052,7 @@ sub find_by_tag_name {
     return;
 }
 
-=method-second find_by_attribute
+=head2 find_by_attribute
 
   @elements = $h->find_by_attribute('attribute', 'value');
   $first_match = $h->find_by_attribute('attribute', 'value');
@@ -3099,7 +3105,7 @@ sub find_by_attribute {
 
 #--------------------------------------------------------------------------
 
-=method-second look_down
+=head2 look_down
 
   @elements = $h->look_down( ...criteria... );
   $first_match = $h->look_down( ...criteria... );
@@ -3277,7 +3283,7 @@ Node:
     return;
 }
 
-=method-second look_up
+=head2 look_up
 
   @elements = $h->look_up( ...criteria... );
   $first_match = $h->look_up( ...criteria... );
@@ -3374,7 +3380,7 @@ Node:
 
 #--------------------------------------------------------------------------
 
-=method-second traverse
+=head2 traverse
 
   $h->traverse(...options...)
 
@@ -3382,7 +3388,7 @@ Lengthy discussion of HTML::Element's unnecessary and confusing
 C<traverse> method has been moved to a separate file:
 L<HTML::Element::traverse>
 
-=method-second attr_get_i
+=head2 attr_get_i
 
   @values = $h->attr_get_i('attribute');
   $first_value = $h->attr_get_i('attribute');
@@ -3487,7 +3493,7 @@ sub attr_get_i {
     }
 }
 
-=method-second tagname_map
+=head2 tagname_map
 
   $hash_ref = $h->tagname_map();
 
@@ -3535,7 +3541,7 @@ sub tagname_map {
     return \%map;
 }
 
-=method-second extract_links
+=head2 extract_links
 
   $links_array_ref = $h->extract_links();
   $links_array_ref = $h->extract_links(@wantedTypes);
@@ -3611,7 +3617,7 @@ sub extract_links {
     \@links;
 }
 
-=method-second simplify_pres
+=head2 simplify_pres
 
   $h->simplify_pres();
 
@@ -3669,7 +3675,7 @@ sub simplify_pres {
     return;
 }
 
-=method-second same_as
+=head2 same_as
 
   $equal = $h->same_as($i)
 
@@ -3766,7 +3772,7 @@ sub same_as {
     return 1;    # passed all the tests!
 }
 
-=method-second new_from_lol
+=head2 new_from_lol
 
   $h = HTML::Element->new_from_lol($array_ref);
   @elements = HTML::Element->new_from_lol($array_ref, ...);
@@ -4005,7 +4011,7 @@ sub new_from_lol {
     }
 }
 
-=method-second objectify_text
+=head2 objectify_text
 
   $h->objectify_text();
 
@@ -4023,7 +4029,7 @@ C<< $h->objectify_text >>, perform whatever task that you needed that for,
 and then call C<< $h->deobjectify_text >> before calling anything like
 C<< $h->as_text >>.
 
-=method-second deobjectify_text
+=head2 deobjectify_text
 
   $h->deobjectify_text();
 
@@ -4115,7 +4121,7 @@ sub deobjectify_text {
     return undef;
 }
 
-=method-second number_lists
+=head2 number_lists
 
   $h->number_lists();
 
@@ -4267,7 +4273,7 @@ sub number_lists {
     return;
 }
 
-=method-second has_insane_linkage
+=head2 has_insane_linkage
 
   $h->has_insane_linkage
 
@@ -4403,7 +4409,7 @@ sub _valid_name {
     return (1);
 }
 
-=method-second element_class
+=head2 element_class
 
   $classname = $h->element_class();
 

@@ -1,6 +1,10 @@
 Changelog for HTML-Tree
 
-{{$NEXT}}
+5.04     2017--04-17
+   Release by Jeff Fearn
+
+    [FIXES]
+    * Remove Distzilla to fix RT #120521
 
 5.03     2012-09-22
    Release by Christopher J. Madsen

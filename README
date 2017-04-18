@@ -43,22 +43,18 @@ The modules and documentation present in this collection are:
 
 INSTALLATION
 
-To install this module, run the following commands:
-
-{{ $t->build_instructions }}
-
-
-
-DEPENDENCIES
-
-{{ $t->dependency_list }}
-
+Just follow the usual procedure:
+  perl Build.PL
+  ./Build
+  ./Build test
+  ./Build install
 
 
 SOURCE
 
-The source is now kept at {{ $meta{resources}{repository}{web}
-                             // die 'no repo' }}
+The source is now kept at
+  * https://github.com/jfearn/HTML-Tree
+  * https://github.com/madsen/HTML-Tree
 
 
 

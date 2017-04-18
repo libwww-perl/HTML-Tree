@@ -11,3 +11,5 @@ Makefile
 HTML-Tree-*.tar.gz
 HTML-Tree-*/
 lwp-test-*
+/MANIFEST.bak
+/Makefile.PL

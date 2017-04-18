@@ -8,7 +8,7 @@ package HTML::Element::traverse;
 use warnings;
 use strict;
 
-# VERSION from OurPkgVersion
+our $VERSION = '5.04';
 
 use HTML::Element ();
 1;
