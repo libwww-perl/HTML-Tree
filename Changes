@@ -3,6 +3,8 @@ Changelog for HTML-Tree
 {{$NEXT}}
     [FIXES]
     * Add POD to htmltree RT #116367
+    * Speed up is_inside method RT #113415
+      - From Todd Rinaldo https://github.com/madsen/HTML-Tree/pull/5
 
 5.909    2014-05-24  Trial Release by Christopher J. Madsen
 
