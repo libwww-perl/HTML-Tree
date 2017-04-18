@@ -7,6 +7,8 @@ Changelog for HTML-Tree
       - From Todd Rinaldo https://github.com/madsen/HTML-Tree/pull/5
     * Fix extra spaces being added to comments RT #94311
       - From Tomaz Solc
+    * Don't needlessly escape characters in element content RT #93431
+      - From Tomaz Solc
 
 5.909    2014-05-24  Trial Release by Christopher J. Madsen
 
