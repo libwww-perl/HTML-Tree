@@ -36,12 +36,14 @@ my $builder = $class->new(
     build_requires     => {
         'Module::Build'   => 0,
         'Test::Exception' => 0,
+	'Test::Fatal'     => 0,
         'Test::More'      => 0,
         'HTML::Parser'    => 3.46,
         'HTML::Tagset'    => 3.02,
         'LWP::UserAgent'  => 0,
         'URI::file'       => 0,
         'Pod::Usage'      => 0,
+        'Scalar::Util'    => 0,
     },
     requires => {
         'HTML::Parser'    => 3.46,

@@ -1,5 +1,10 @@
 Changelog for HTML-Tree
 
+5.05      UNRELEASED
+
+    [FIXES]
+    * Add missing Test::Fatal build dep. RT #121230
+
 5.04     2017--04-17
    Release by Jeff Fearn
 
