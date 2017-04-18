@@ -4,7 +4,7 @@ Changelog for HTML-Tree
    Release by Jeff Fearn
 
     [FIXES]
-    * Remove Distzilla to fix RT #120521
+    * Remove Distzilla to fix RT #120521 #89820
     * Add POD to htmltree RT #116367
     * Speed up is_inside method RT #113415
       - From Todd Rinaldo https://github.com/madsen/HTML-Tree/pull/5
