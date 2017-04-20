@@ -1,6 +1,8 @@
 use 5.008;
 use strict;
 use warnings;
+
+use lib '.';
 use inc::My_Build;
 
 my $builder = inc::My_Build->new(

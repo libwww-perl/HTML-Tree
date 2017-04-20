@@ -9,6 +9,8 @@ Changelog for HTML-Tree
         than to compare 5.04 and 5.05, or 5.03 and 5.05.
       - Fixes RT#12230: Undeclared dep on Test::Fatal
         - https://rt.cpan.org/Ticket/Display.html?id=121230
+    * Proper fix for '.' in @INC
+      - https://rt.cpan.org/Ticket/Display.html?id=120521
 
 5.04     2017--04-17
    Release by Jeff Fearn
