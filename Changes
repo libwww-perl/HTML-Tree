@@ -9,6 +9,8 @@ Changelog for HTML-Tree
       - From Tomaz Solc
     * Don't needlessly escape characters in element content RT #93431
       - From Tomaz Solc
+    * Fix fix for '.' in @INC
+      - https://rt.cpan.org/Ticket/Display.html?id=120521
 
 5.909    2014-05-24  Trial Release by Christopher J. Madsen
 
