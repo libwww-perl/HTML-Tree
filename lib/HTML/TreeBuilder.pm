@@ -7,7 +7,7 @@ use strict;
 use integer;    # vroom vroom!
 use Carp ();
 
-our $VERSION = '5.04';
+# VERSION from OurPkgVersion
 
 #---------------------------------------------------------------------------
 # Make a 'DEBUG' constant...
@@ -1737,7 +1737,7 @@ the current setting for the C<implicit_tags> option,
 C<< $root->implicit_tags(1) >> turns that option on,
 and C<< $root->implicit_tags(0) >> turns it off.
 
-=head2 new_from_file
+=method new_from_file
 
   $root = HTML::TreeBuilder->new_from_file($filename_or_filehandle);
 
@@ -1752,7 +1752,7 @@ If HTML::TreeBuilder is unable to read the file, then C<new_from_file>
 dies.  The error can also be found in C<$!>.  (This behavior is new in
 HTML-Tree 5. Previous versions returned a tree with only implicit elements.)
 
-=head2 new_from_content
+=method new_from_content
 
   $root = HTML::TreeBuilder->new_from_content(...);
 
@@ -1764,7 +1764,7 @@ call C<new>, and then set options, before calling C<parse>).  Example
 usages: C<< HTML::TreeBuilder->new_from_content(@lines) >>, or
 C<< HTML::TreeBuilder->new_from_content($content) >>.
 
-=head2 new_from_url
+=method new_from_url
 
   $root = HTML::TreeBuilder->new_from_url($url)
 
@@ -1784,14 +1784,14 @@ You must have installed LWP::UserAgent for this method to work.  LWP
 is not installed automatically, because it's a large set of modules
 and you might not need it.
 
-=head2 new
+=method new
 
   $root = HTML::TreeBuilder->new();
 
 This creates a new HTML::TreeBuilder object.  This method takes no
 attributes.
 
-=head2 parse_file
+=method parse_file
 
  $root->parse_file(...)
 
@@ -1820,14 +1820,14 @@ you should open it yourself and pass the filehandle to C<parse_file>.
 The return value is C<undef> if there's an error opening the file.  In
 that case, the error will be in C<$!>.
 
-=head2 parse
+=method parse
 
   $root->parse(...)
 
 [A important method inherited from L<HTML::Parser|HTML::Parser>, which
 see.  See the note below for C<< $root->eof() >>.]
 
-=head2 eof
+=method eof
 
   $root->eof();
 
@@ -1839,21 +1839,21 @@ C<< $root->parse(...) >>, then you I<must> call C<< $root->eof() >>
 once you've finished feeding all the chunks to C<parse(...)>, and
 before you actually start doing anything else with the tree in C<$root>.
 
-=head2 parse_content
+=method parse_content
 
   $root->parse_content(...);
 
 Basically a handy alias for C<< $root->parse(...); $root->eof >>.
 Takes the exact same arguments as C<< $root->parse() >>.
 
-=head2 delete
+=method delete
 
   $root->delete();
 
 [A previously important method inherited from L<HTML::Element|HTML::Element>,
 which see.]
 
-=head2 elementify
+=method elementify
 
   $root->elementify();
 
@@ -1876,7 +1876,7 @@ C<$root> except for "_tag", "_parent", "_content", "_pos", and
 "_implicit".  If anyone requests that I change this to leave in yet
 more private attributes, I might do so, in future versions.
 
-=head2 guts
+=method guts
 
  @nodes = $root->guts();
  $parent_for_nodes = $root->guts();
@@ -1913,7 +1913,7 @@ element node, with children consisting of whatever nodes C<guts()>
 in list context would have returned.  Note that that may detach those
 nodes from C<$root>'s tree.
 
-=head2 disembowel
+=method disembowel
 
   @nodes = $root->disembowel();
   $parent_for_nodes = $root->disembowel();
@@ -1924,7 +1924,7 @@ are returned.  Usually when you want the guts from a tree, you're just
 going to toss out the rest of the tree anyway, so this saves you the
 bother.  (Remember, "disembowel" means "remove the guts from".)
 
-=head2 implicit_tags
+=attr implicit_tags
 
 Setting this attribute to true will instruct the parser to try to
 deduce implicit elements and implicit end tags.  If it is false you
@@ -1936,7 +1936,7 @@ Default is true.
 
 Implicit elements have the L<HTML::Element/implicit> attribute set.
 
-=head2 implicit_body_p_tag
+=attr implicit_body_p_tag
 
 This controls an aspect of implicit element behavior, if C<implicit_tags>
 is on:  If a text element (PCDATA) or a phrasal element (such as
@@ -1948,7 +1948,7 @@ behaved.)  But if C<implicit_body_p_tag> is false, nothing is implicated
 -- the PCDATA or phrasal element is simply placed under
 C<< <body> >>.  Default is false.
 
-=head2 no_expand_entities
+=attr no_expand_entities
 
 This attribute controls whether entities are decoded during the initial
 parse of the source. Enable this if you don't want entities decoded to
@@ -1956,19 +1956,19 @@ their character value. e.g. '&amp;' is decoded to '&' by default, but
 will be unchanged if this is enabled.
 Default is false (entities will be decoded.)
 
-=head2 ignore_unknown
+=attr ignore_unknown
 
 This attribute controls whether unknown tags should be represented as
 elements in the parse tree, or whether they should be ignored.
 Default is true (to ignore unknown tags.)
 
-=head2 ignore_text
+=attr ignore_text
 
 Do not represent the text content of elements.  This saves space if
 all you want is to examine the structure of the document.  Default is
 false.
 
-=head2 ignore_ignorable_whitespace
+=attr ignore_ignorable_whitespace
 
 If set to true, TreeBuilder will try to avoid
 creating ignorable whitespace text nodes in the tree.  Default is
@@ -1976,7 +1976,7 @@ true.  (In fact, I'd be interested in hearing if there's ever a case
 where you need this off, or where leaving it on leads to incorrect
 behavior.)
 
-=head2 no_space_compacting
+=attr no_space_compacting
 
 This determines whether TreeBuilder compacts all whitespace strings
 in the document (well, outside of PRE or TEXTAREA elements), or
@@ -1991,7 +1991,7 @@ writing it back out.
 This method is experimental.  If you use it, be sure to report
 any problems you might have with it.
 
-=head2 p_strict
+=attr p_strict
 
 If set to true (and it defaults to false), TreeBuilder will take a
 narrower than normal view of what can be under a C<< <p> >> element; if it sees
@@ -2021,18 +2021,18 @@ content-models on all elements, then I suggest that what you want is
 content-model checking as a stage after TreeBuilder has finished
 parsing.
 
-=head2 store_comments
+=attr store_comments
 
 This determines whether TreeBuilder will normally store comments found
 while parsing content into C<$root>.  Currently, this is off by default.
 
-=head2 store_declarations
+=attr store_declarations
 
 This determines whether TreeBuilder will normally store markup
 declarations found while parsing content into C<$root>.  This is on
 by default.
 
-=head2 store_pis
+=attr store_pis
 
 This determines whether TreeBuilder will normally store processing
 instructions found while parsing content into C<$root> -- assuming a
@@ -2043,7 +2043,7 @@ It is somewhat of a known bug (to be fixed one of these days, if
 anyone needs it?) that PIs in the preamble (before the C<< <html> >>
 start-tag) end up actually I<under> the C<< <html> >> element.
 
-=head2 warn
+=attr warn
 
 This determines whether syntax errors during parsing should generate
 warnings, emitted via Perl's C<warn> function.
@@ -2054,7 +2054,7 @@ This is off (false) by default.
 
 You should not need to call any of the following methods directly.
 
-=head2 element_class
+=method-int element_class
 
   $classname = $h->element_class;
 
@@ -2063,25 +2063,25 @@ defaults to HTML::Element, but can be overridden by subclassing or esoteric
 means best left to those will will read the source and then not complain when
 those esoteric means change.  (Just subclass.)
 
-=head2 DEBUG
+=sub DEBUG
 
 Are we in Debug mode?  This is a constant subroutine, to allow
 compile-time optimizations.  To control debug mode, set
 C<$HTML::TreeBuilder::DEBUG> I<before> loading HTML::TreeBuilder.
 
-=head2 comment
+=method-int comment
 
 Accept a "here's a comment" signal from HTML::Parser.
 
-=head2 declaration
+=method-int declaration
 
 Accept a "here's a markup declaration" signal from HTML::Parser.
 
-=head2 done
+=method-int done
 
 TODO: document
 
-=head2 end
+=method-int end
 
 Either: Acccept an end-tag signal from HTML::Parser
 Or: Method for closing currently open elements in some fairly complex
@@ -2089,41 +2089,42 @@ way, as used by other methods in this class.
 
 TODO: Why is this hidden?
 
-=head2 process
+=method-int process
 
 Accept a "here's a PI" signal from HTML::Parser.
 
-=head2 start
+=method-int start
 
 Accept a signal from HTML::Parser for start-tags.
 
 TODO: Why is this hidden?
 
-=head2 stunt
+=method-int stunt
 
 TODO: document
 
-=head2 stunted
+=method-int stunted
 
 TODO: document
 
-=head2 text
+=method-int text
 
 Accept a "here's a text token" signal from HTML::Parser.
 
 TODO: Why is this hidden?
 
-=head2 tighten_up
+=method-int tighten_up
 
 Legacy
 
 Redirects to L<HTML::Element/delete_ignorable_whitespace>.
 
-=head2 warning
+=method-int warning
 
 Wrapper for CORE::warn
 
 TODO: why not just use carp?
+
 
 =head1 HTML AND ITS DISCONTENTS
 

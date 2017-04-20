@@ -3,7 +3,12 @@ Changelog for HTML-Tree
 5.05      UNRELEASED
 
     [FIXES]
-    * Add missing Test::Fatal build dep. RT #121230
+    * Revert Dist::Zilla Removal
+      - https://github.com/jfearn/HTML-Tree/issues/7
+      - Vendor note: It should be simpler to compare 5.03 and 5.05
+        than to compare 5.04 and 5.05, or 5.03 and 5.05.
+      - Fixes RT#12230: Undeclared dep on Test::Fatal
+        - https://rt.cpan.org/Ticket/Display.html?id=121230
 
 5.04     2017--04-17
    Release by Jeff Fearn

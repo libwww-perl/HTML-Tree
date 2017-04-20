@@ -87,7 +87,7 @@ L<HTML::Parser>, L<HTML::TreeBuilder>, L<HTML::Element>
 use warnings;
 use strict;
 
-our $VERSION = '5.04';
+# VERSION from OurPkgVersion
 
 use vars qw(@ISA @EXPORT
     $IMPLICIT_TAGS $IGNORE_UNKNOWN $IGNORE_TEXT $WARN

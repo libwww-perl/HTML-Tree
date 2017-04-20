@@ -7,7 +7,7 @@ package HTML::Tree;
 use warnings;
 use strict;
 
-our $VERSION = '5.04';
+# VERSION from OurPkgVersion
 
 use HTML::TreeBuilder ();
 
@@ -101,19 +101,19 @@ All these methods simply redirect to the corresponding method in
 HTML::TreeBuilder.  It's more efficient to use HTML::TreeBuilder
 directly, and skip loading HTML::Tree at all.
 
-=head2 new
+=method new
 
 Redirects to L<HTML::TreeBuilder/new>.
 
-=head2 new_from_file
+=method new_from_file
 
 Redirects to L<HTML::TreeBuilder/new_from_file>.
 
-=head2 new_from_content
+=method new_from_content
 
 Redirects to L<HTML::TreeBuilder/new_from_content>.
 
-=head2 new_from_url
+=method new_from_url
 
 Redirects to L<HTML::TreeBuilder/new_from_url>.
 

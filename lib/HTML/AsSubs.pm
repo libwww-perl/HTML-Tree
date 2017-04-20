@@ -72,7 +72,7 @@ use warnings;
 use strict;
 use vars qw(@ISA @EXPORT);
 
-our $VERSION = '5.04';
+# VERSION from OurPkgVersion
 
 require HTML::Element;
 require Exporter;
