@@ -1,6 +1,6 @@
 Changelog for HTML-Tree
 
-5.05      UNRELEASED
+5.05      2017-04-26
 
     [FIXES]
     * Revert Dist::Zilla Removal
@@ -12,7 +12,7 @@ Changelog for HTML-Tree
     * Proper fix for '.' in @INC
       - https://rt.cpan.org/Ticket/Display.html?id=120521
 
-5.04     2017--04-17
+5.04     2017-04-17
    Release by Jeff Fearn
 
     [FIXES]
