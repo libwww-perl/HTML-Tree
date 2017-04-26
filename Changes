@@ -2,6 +2,7 @@ Changelog for HTML-Tree
 
 {{$NEXT}}
     [FIXES]
+    * Port 5.04 & 5.05 Fixes
     * Add POD to htmltree RT #116367
     * Speed up is_inside method RT #113415
       - From Todd Rinaldo https://github.com/madsen/HTML-Tree/pull/5
@@ -102,6 +103,30 @@ Changelog for HTML-Tree
     - Add test for self_closed_tags attribute.
     - Clarify skip message in construct_tree.t (RT #81371)
 
+5.05      2017-04-26
+
+    [FIXES]
+    * Revert Dist::Zilla Removal
+      - https://github.com/jfearn/HTML-Tree/issues/7
+      - Vendor note: It should be simpler to compare 5.03 and 5.05
+        than to compare 5.04 and 5.05, or 5.03 and 5.04.
+      - Fixes RT#12230: Undeclared dep on Test::Fatal
+        - https://rt.cpan.org/Ticket/Display.html?id=121230
+    * Proper fix for '.' in @INC
+      - https://rt.cpan.org/Ticket/Display.html?id=120521
+
+5.04     2017-04-17
+   Release by Jeff Fearn
+
+    [FIXES]
+    * Remove Distzilla to fix RT #120521 #89820
+    * Add POD to htmltree RT #116367
+    * Speed up is_inside method RT #113415
+      - From Todd Rinaldo https://github.com/madsen/HTML-Tree/pull/5
+    * Fix extra spaces being added to comments RT #94311
+      - From Tomaz Solc
+    * Don't needlessly escape characters in element content RT #93431
+      - From Tomaz Solc
 
 5.03     2012-09-22  Release by Christopher J. Madsen
 
