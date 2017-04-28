@@ -1255,8 +1255,7 @@ sub delete_content {
                 #  will keep calls to detach() from trying to uselessly filter
                 #  the list (as they won't be able to see it once it's been
                 #  deleted)
-                || return ( $_[0] )
-                    # in case of no content
+                || return ( $_[0] )    # in case of no content
         },
         0
 
@@ -2053,7 +2052,7 @@ sub as_XML {
                 }
             }
             else {        # it's just text
-                _xml_escape_text($node);
+                _xml_escape($node);
                 push( @xml, $node );
             }
             1;            # keep traversing
@@ -2063,10 +2062,10 @@ sub as_XML {
     join( '', @xml, "\n" );
 }
 
-sub _xml_escape_text {
+sub _xml_escape {
 
 # DESTRUCTIVE (a.k.a. "in-place")
-# Three escapes always required in character data: http://www.w3.org/TR/2006/REC-xml11-20060816/#syntax
+# Five required escapes: http://www.w3.org/TR/2006/REC-xml11-20060816/#syntax
 # We allow & if it's part of a valid escape already: http://www.w3.org/TR/2006/REC-xml11-20060816/#sec-references
     foreach my $x (@_) {
 
@@ -2086,20 +2085,6 @@ sub _xml_escape_text {
         # simple character escapes
         $x =~ s/</&lt;/g;
         $x =~ s/>/&gt;/g;
-    }
-    return;
-}
-
-sub _xml_escape {
-
-# DESTRUCTIVE (a.k.a. "in-place")
-# In addition to other escapes, also escape apostrophe and double-quote
-# characters that must be escaped in attribute values.
-
-# http://www.w3.org/TR/2006/REC-xml11-20060816/#syntax
-    _xml_escape_text(@_);
-
-    foreach my $x (@_) {
         $x =~ s/"/&quot;/g;
         $x =~ s/'/&apos;/g;
     }
