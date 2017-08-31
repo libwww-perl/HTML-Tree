@@ -1,6 +1,9 @@
 Changelog for HTML-Tree
 
 {{$NEXT}}
+
+5.07     2017-08-31
+   Release by Kent Fredric
     [FIXES]
     * Workaround more @INC issues with Module::Build and sudo RT#122199
 
