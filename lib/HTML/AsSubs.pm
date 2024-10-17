@@ -70,13 +70,12 @@ L<HTML::Element>, L<XML::Generator>
 
 use warnings;
 use strict;
-use vars qw(@ISA @EXPORT);
 
 # VERSION from OurPkgVersion
 
 require HTML::Element;
 require Exporter;
-@ISA = qw(Exporter);
+our @ISA = qw(Exporter);
 
 # Problem: exports so damned much.  Has no concept of "export only HTML4
 #  elements".  TODO:?? make something that make functions that just
@@ -88,8 +87,7 @@ A bunch of methods for creating tags.
 
 =cut
 
-use vars qw(@TAGS);
-@TAGS = qw(html
+our @TAGS = qw(html
     head title base link meta isindex nextid script style
     body h1 h2 h3 h4 h5 h6 p pre div blockquote
     a img br hr
@@ -106,6 +104,7 @@ use vars qw(@TAGS);
     frame frameset noframe
 );
 
+our @EXPORT;
 for (@TAGS) {
     my $code;
     $code = "sub $_ { _elem('$_', \@_); }\n";
